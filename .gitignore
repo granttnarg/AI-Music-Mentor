@@ -1,0 +1,25 @@
+# Environment
+.env
+__pycache__/
+*.pyc
+.venv/
+
+# Data
+data/raw/
+data/processed/
+data/feedback/
+
+# Models (if large)
+models/*.pkl
+models/*.bin
+models/*.h5
+*.model
+
+# Uploads
+uploads/
+*.mp3
+*.wav
+
+# OS
+.DS_Store
+Thumbs.db
