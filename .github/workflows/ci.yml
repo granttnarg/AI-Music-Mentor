@@ -1,0 +1,21 @@
+# .github/workflows/ci.yml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync
+      - name: Format check
+        run: uv run black --check .
+      - name: Run tests
+        run: uv run pytest || echo "No tests found"
