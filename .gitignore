@@ -5,21 +5,17 @@ __pycache__/
 .venv/
 
 # Data
-data/raw/
-data/processed/
-data/feedback/
-data/test
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.aac
 
 # Models (if large)
 models/*.pkl
 models/*.bin
 models/*.h5
 *.model
-
-# Uploads
-uploads/
-*.mp3
-*.wav
 
 # OS
 .DS_Store
