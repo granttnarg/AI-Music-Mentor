@@ -18,6 +18,7 @@ def numpy_serializer(obj):
         return obj.tolist()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
+
 # START OF UPLOAD
 
 uploads_dir = Path("uploads")
@@ -45,7 +46,7 @@ if st.button("Submit"):
 
     if uploaded_file is not None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_path = uploads_dir / f'{timestamp}--{uploaded_file.name}'
+        file_path = uploads_dir / f"{timestamp}--{uploaded_file.name}"
 
         # Save the MP3 file
         with open(file_path, "wb") as f:
@@ -56,7 +57,11 @@ if st.button("Submit"):
         # TODO: We should extend this to a DB entry later
         service = AudioFeatureService()
         try:
-            global_features = service.load_audio_file(file_path).extract_global_features(max_duration=150) # Set to a short time so we can TEST. REMOVE THIS LATER
+            global_features = service.load_audio_file(
+                file_path
+            ).extract_global_features(
+                max_duration=150
+            )  # Set to a short time so we can TEST. REMOVE THIS LATER
         except Exception as e:
             st.error(f"Error processing audio type : {e} for: {uploaded_file.name}")
 
@@ -69,17 +74,21 @@ if st.button("Submit"):
             "user_question": text_input,
             "file_size_bytes": uploaded_file.size,
             "processed": {
-                "global_feature_embedding": service.create_embedding_vector(global_features).tolist(),  # Convert to list
-                "global_feature_data": service.build_feature_data_object(global_features,['rhythm', 'energy']),
-                "processed_at": datetime.now().isoformat()
-            }
+                "global_feature_embedding": service.create_embedding_vector(
+                    global_features
+                ).tolist(),  # Convert to list
+                "global_feature_data": service.build_feature_data_object(
+                    global_features, ["rhythm", "energy"]
+                ),
+                "processed_at": datetime.now().isoformat(),
+            },
         }
 
         pprint(f"META_DATA: {metadata}")
 
         # Save JSON sidecar file
-        json_path = uploads_dir / f'{timestamp}--{uploaded_file.name}.json'
-        with open(json_path, 'w') as f:
+        json_path = uploads_dir / f"{timestamp}--{uploaded_file.name}.json"
+        with open(json_path, "w") as f:
             json.dump(metadata, f, default=numpy_serializer, indent=2)
 
         st.success(f"File uploaded and saved: {file_path}")
@@ -101,6 +110,6 @@ if st.button("Submit"):
 
         # Show the metadata content
         if json_path and json_path.exists():
-            with open(json_path, 'r') as f:
+            with open(json_path, "r") as f:
                 metadata = json.load(f)
             st.json(metadata)
