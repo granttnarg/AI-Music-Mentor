@@ -137,8 +137,58 @@ class AudioFeatureService:
     return filtered_data
 
   def build_feature_data_object(self, feature_data, categories=['eq', 'energy', 'rhythm']):
-    pass
+      """
+      Reorganize global features into feedback-oriented categories for RAG/DB storage.
 
+      Args:
+          feature_data: Output from extract_global_features()
+          categories: List of feedback categories to include
+                    (available: 'eq', 'energy', 'rhythm', 'arrangement')
+
+      Returns:
+          Dict organized by feedback categories with relevant features
+      """
+      feedback_object = {}
+
+      # Add metadata
+      if 'metadata' in feature_data:
+          feedback_object['metadata'] = feature_data['metadata'].copy()
+
+      # EQ category - frequency balance and spectral characteristics
+      if 'eq' in categories:
+          feedback_object['eq'] = {
+              'brightness': feature_data.get('spectral', {}).get('avg_brightness', 0),
+              'brightness_variance': feature_data.get('spectral', {}).get('brightness_variance', 0),
+              'low_proportion': feature_data.get('frequency', {}).get('low_proportion', 0),
+              'mid_proportion': feature_data.get('frequency', {}).get('mid_proportion', 0),
+              'high_proportion': feature_data.get('frequency', {}).get('high_proportion', 0),
+              'rolloff_frequency': feature_data.get('spectral', {}).get('avg_rolloff', 0),
+              'spectral_bandwidth': feature_data.get('spectral', {}).get('avg_bandwidth', 0),
+              'mid_low_ratio': feature_data.get('frequency', {}).get('mid_low_ratio', 0),
+              'high_mid_ratio': feature_data.get('frequency', {}).get('high_mid_ratio', 0)
+          }
+
+      # Energy category - dynamics and loudness
+      if 'energy' in categories:
+          feedback_object['energy'] = {
+              'dynamic_range': feature_data.get('energy', {}).get('energy_range', 0),
+              'average_energy': feature_data.get('energy', {}).get('avg_energy', 0),
+              'energy_trend': feature_data.get('energy', {}).get('energy_trend', 0),
+              'peak_density': feature_data.get('energy', {}).get('peak_density', 0),
+              'beat_strength': feature_data.get('rhythm', {}).get('beat_strength', 0)
+          }
+
+      # Rhythm category - timing and groove
+      if 'rhythm' in categories:
+          feedback_object['rhythm'] = {
+              'tempo': feature_data.get('rhythm', {}).get('tempo', 0),
+              'onset_density': feature_data.get('rhythm', {}).get('onset_density', 0),
+              'syncopation_level': feature_data.get('rhythm', {}).get('syncopation_level', 0),
+              'rhythmic_variance': feature_data.get('rhythm', {}).get('rhythmic_variance', 0),
+              'beat_strength': feature_data.get('rhythm', {}).get('beat_strength', 0)
+          }
+
+      return feedback_object
 
   # ======================================================================================= #
   # PRIVATE METHODS #
