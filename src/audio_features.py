@@ -54,14 +54,92 @@ class AudioFeatureService:
     print(f'## Global features extracted for {self.audio_path}!')
     return global_features
 
-  def filter_feature_set(self, analysis, exclude_categories=['spectral']):
+  def create_embedding_vector(self, feature_data, exclude_categories=None):
+    """
+    Convert feature_data to raw vector with basic normalization.
+    Filtered sections will be replaced with default values to keep vector size.
+
+    Args:
+        feature_data: Output from extract_global_features() or filter_feature_set()
+
+    Returns:
+        np.array of 19 normalized features (0-1 range mostly)
+
+    Note: Missing categories get neutral defaults to maintain consistent
+          vector dimensions for similarity calculations.
+    """
+
+    if exclude_categories:
+         feature_data = self.filter_feature_set(feature_data, exclude_categories)
+    else:
+        feature_data = feature_data
+
+    # Extract raw features (removed arbitrary scaling)
+    vector = np.array([
+        # Rhythm - with safe defaults
+        feature_data.get('rhythm', {}).get('tempo', 120) / 200.0,
+        feature_data.get('rhythm', {}).get('onset_density', 0) / 15.0,
+        feature_data.get('rhythm', {}).get('syncopation_level', 0),
+        feature_data.get('rhythm', {}).get('rhythmic_variance', 0) / 0.1,
+
+        # Harmony
+        feature_data.get('harmony', {}).get('chroma_variance', 0) / 0.1,
+        feature_data.get('harmony', {}).get('key_strength', 1) / 3.0,
+        feature_data.get('harmony', {}).get('harmonic_change_rate', 0) / 0.005,
+        feature_data.get('harmony', {}).get('tonal_stability', 0.5),
+
+        # Energy
+        feature_data.get('energy', {}).get('energy_range', 0),
+        feature_data.get('energy', {}).get('avg_energy', 0),
+        abs(feature_data.get('energy', {}).get('energy_trend', 0)) / 0.001,
+        feature_data.get('energy', {}).get('peak_density', 0) / 25.0,
+
+        # Spectral
+        feature_data.get('spectral', {}).get('avg_brightness', 1000) / 8000.0,
+        feature_data.get('spectral', {}).get('brightness_variance', 0) / 2000000.0,
+
+        # Frequency
+        feature_data.get('frequency', {}).get('low_proportion', 0.33),
+        feature_data.get('frequency', {}).get('mid_proportion', 0.33),
+        feature_data.get('frequency', {}).get('high_proportion', 0.33),
+        feature_data.get('frequency', {}).get('mid_low_ratio', 1.0),
+        feature_data.get('frequency', {}).get('high_mid_ratio', 1.0),
+    ])
+
+    return vector
+
+  def filter_feature_set(self, feature_data, exclude_categories=['spectral']):
+    """
+    Filter feature data by excluding specified categories.
+
+    Args:
+        feature_data: Output from extract_global_features()
+        exclude_categories: List of categories to remove
+                          (from: 'rhythm', 'harmony', 'energy', 'spectral', 'frequency')
+
+    Returns:
+        Filtered feature data with same structure but excluded categories removed
+    """
+    if not exclude_categories:
+        return feature_data
+
+    # Create a copy to avoid modifying original data
+    filtered_data = feature_data.copy()
+
+    # Remove excluded categories
+    for category in exclude_categories:
+        if category in filtered_data:
+            del filtered_data[category]
+
+    return filtered_data
+
+  def build_feature_data_object(self, feature_data, categories=['eq', 'energy', 'rhythm']):
     pass
 
-  def create_embedding_vector(self, analysis):
-    pass
 
-  def build_feature_data_object(self, analysis, categories=['eq', 'energy', 'rhythm']):
-    pass
+
+
+
 
 
   ## PRIVATE METHODS
@@ -98,7 +176,7 @@ class AudioFeatureService:
       # Save BPM for other methods
       self.tempo = tempo
 
-      # Onset analysis
+      # Onset feature_data
       onset_env = librosa.onset.onset_strength(y=y_perc, sr=sr, hop_length=hop_length)
       onsets = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr, hop_length=hop_length)
       onset_times = librosa.frames_to_time(onsets, sr=sr, hop_length=hop_length)
@@ -129,7 +207,7 @@ class AudioFeatureService:
       """Extract harmony-related features"""
       y_harm = self.y_harm
 
-      # Chroma analysis
+      # Chroma feature_data
       chroma = librosa.feature.chroma_cqt(y=y_harm, sr=sr, hop_length=hop_length)
       chroma_mean = np.mean(chroma, axis=1)
 
@@ -159,7 +237,7 @@ class AudioFeatureService:
       # Energy curve shape
       energy_trend = np.polyfit(range(len(rms)), rms, 1)[0]
 
-      # Peak analysis
+      # Peak feature_data
       from scipy.signal import find_peaks
       peaks, _ = find_peaks(rms, height=np.mean(rms))
       peak_density = len(peaks) / duration
@@ -189,8 +267,8 @@ class AudioFeatureService:
       }
 
   def _extract_frequency_features(self, y, sr, hop_length):
-      """Extract frequency band analysis"""
-      # Frequency content analysis
+      """Extract frequency band feature_data"""
+      # Frequency content feature_data
       S = np.abs(librosa.stft(y, hop_length=hop_length))
       freqs = librosa.fft_frequencies(sr=sr)
 

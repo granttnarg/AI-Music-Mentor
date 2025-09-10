@@ -8,6 +8,9 @@ def main():
     global_features = service.load_audio_file(file_path).extract_global_features()
     print(global_features)
 
+    raw_vector = service.create_embedding_vector(global_features)
+    print(raw_vector)
+
 if __name__ == "__main__":
     main()
 
