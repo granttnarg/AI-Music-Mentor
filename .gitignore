@@ -11,6 +11,9 @@ __pycache__/
 *.m4a
 *.aac
 
+#for basic json sidecar
+*.mp3.json
+
 # Models (if large)
 models/*.pkl
 models/*.bin
