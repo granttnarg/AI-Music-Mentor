@@ -35,7 +35,7 @@ class AudioFeatureService:
     return self
 
 
-  def extract_global_features(self, max_duration=300):
+  def extract_global_features(self, max_duration=600):
     """
     Extract global (whole-track) audio features from a song
     No segmentation - just overall track characteristics.

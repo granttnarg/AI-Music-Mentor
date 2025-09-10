@@ -56,7 +56,7 @@ if st.button("Submit"):
         # TODO: We should extend this to a DB entry later
         service = AudioFeatureService()
         try:
-            global_features = service.load_audio_file(file_path).extract_global_features()
+            global_features = service.load_audio_file(file_path).extract_global_features(max_duration=150) # Set to a short time so we can TEST. REMOVE THIS LATER
         except Exception as e:
             st.error(f"Error processing audio type : {e} for: {uploaded_file.name}")
 
