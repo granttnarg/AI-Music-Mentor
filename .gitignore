@@ -8,6 +8,7 @@ __pycache__/
 data/raw/
 data/processed/
 data/feedback/
+data/test
 
 # Models (if large)
 models/*.pkl
