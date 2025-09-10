@@ -11,9 +11,12 @@ class AudioFeatureService:
   def __init__(self, sr=22050, hop_length= 128):
     self.sr = sr
     self.hop_length =  hop_length
-    self.y = None
     self.tempo = None
     self.audio_path = None
+
+    self.y = None # amplitude
+    self.y_harm = None # harmonic
+    self.y_perc = None # rhythmic
 
   def load_audio_file(self, audio_path):
     """
@@ -37,15 +40,15 @@ class AudioFeatureService:
     Extract global (whole-track) audio features from a song
     No segmentation - just overall track characteristics.
     """
-    y, sr, hop_length, duration = self._prepare_audio(max_duration)
+    y, y_perc, y_harm, sr, hop_length, duration = self._prepare_audio(max_duration)
 
     global_features = {
         'metadata': {
             'duration': duration,
             'sample_rate': sr
         },
-        'rhythm': self._extract_rhythm_features(y, sr, hop_length, duration),
-        'harmony': self._extract_harmony_features(sr, hop_length, duration),
+        'rhythm': self._extract_rhythm_features(y_perc, sr, hop_length, duration),
+        'harmony': self._extract_harmony_features(y_harm, sr, hop_length, duration),
         'energy': self._extract_energy_features(y, hop_length, duration),
         'spectral': self._extract_spectral_features(y, sr, hop_length),
         'frequency': self._extract_frequency_features(y, sr, hop_length)
@@ -137,12 +140,8 @@ class AudioFeatureService:
     pass
 
 
-
-
-
-
-
-  ## PRIVATE METHODS
+  # ======================================================================================= #
+  # PRIVATE METHODS #
 
   def _prepare_audio(self, max_duration):
       """Prepare audio for feature extraction"""
@@ -163,14 +162,13 @@ class AudioFeatureService:
       self.y_perc = y_perc
 
       print('Audio Prepped')
-      return y, sr, hop_length, duration
+      return y, y_perc, y_harm, sr, hop_length, duration
 
-  def _extract_rhythm_features(self, y, sr, hop_length, duration):
+  def _extract_rhythm_features(self, y_perc, sr, hop_length, duration):
       """Extract rhythm-related features"""
-      y_perc = self.y_perc
 
       # Tempo and beat consistency
-      tempo, beats = librosa.beat.beat_track(y=y_perc, sr=sr, hop_length=hop_length)
+      tempo, _beats = librosa.beat.beat_track(y=y_perc, sr=sr, hop_length=hop_length)
       tempo = float(tempo)
 
       # Save BPM for other methods
@@ -203,9 +201,8 @@ class AudioFeatureService:
           'beat_strength': np.mean(onset_env)
       }
 
-  def _extract_harmony_features(self, sr, hop_length, duration):
+  def _extract_harmony_features(self, y_harm, sr, hop_length, duration):
       """Extract harmony-related features"""
-      y_harm = self.y_harm
 
       # Chroma feature_data
       chroma = librosa.feature.chroma_cqt(y=y_harm, sr=sr, hop_length=hop_length)
