@@ -50,16 +50,20 @@ uv run pytest
 
 ```
 ├── app.py              # Streamlit dashboard
+├── main.py             # Test script for audio feature extraction
 ├── src/
-│   ├── audio_features.py   # Audio feature extraction
+│   ├── audio_features.py   # Audio feature extraction service
 │   ├── rag.py             # RAG system for feedback
-│   └── preprocessing.py   # Data preprocessing
+│   └── pre-processing.py  # Data preprocessing
 ├── data/
 │   ├── raw/              # Training audio files
 │   ├── processed/        # Extracted features
-│   └── feedback/         # Manual feedback data
-├── models/               # Trained models
-└── tests/               # Unit tests
+│   ├── feedback/         # Manual feedback data
+│   └── test/            # Test audio files
+├── uploads/             # User uploaded files and metadata
+├── notebooks/           # Jupyter notebooks for development
+├── models/              # Trained models
+└── tests/              # Unit tests
 ```
 
 ## How it works
