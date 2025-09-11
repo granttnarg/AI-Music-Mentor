@@ -1,4 +1,4 @@
-# AI Music Mentor - Work in Progress
+# AI Music Mentor - 🚧 Work in Progress - 3 Week MVP for Data Science Retreat
 
 Upload your unfinished techno tracks and get AI-powered arrangement feedback to help you finish them.
 
