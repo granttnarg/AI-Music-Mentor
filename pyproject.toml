@@ -1,7 +1,7 @@
 [project]
 name = "ai-music-mentor"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI Feedback Mentor for Music Production using LLM/RAG and Librosa Feature Extraction"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

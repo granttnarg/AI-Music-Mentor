@@ -6,8 +6,9 @@ from datetime import datetime
 
 Base = declarative_base()
 
+
 class Track(Base):
-    __tablename__ = 'tracks'
+    __tablename__ = "tracks"
 
     id = Column(Integer, primary_key=True)
     file_path = Column(String, unique=True, nullable=False)
@@ -18,17 +19,22 @@ class Track(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
-    example_tracks = relationship("TrainingExample", foreign_keys="TrainingExample.example_track_id")
-    reference_tracks = relationship("TrainingExample", foreign_keys="TrainingExample.reference_track_id")
+    example_tracks = relationship(
+        "TrainingExample", foreign_keys="TrainingExample.example_track_id"
+    )
+    reference_tracks = relationship(
+        "TrainingExample", foreign_keys="TrainingExample.reference_track_id"
+    )
     input_uploads = relationship("UserUpload", foreign_keys="UserUpload.input_track_id")
     # reference_uploads = relationship("UserUpload", foreign_keys="UserUpload.reference_track_id")
 
+
 class TrainingExample(Base):
-    __tablename__ = 'training_examples'
+    __tablename__ = "training_examples"
 
     id = Column(Integer, primary_key=True)
-    example_track_id = Column(Integer, ForeignKey('tracks.id'), nullable=False)
-    reference_track_id = Column(Integer, ForeignKey('tracks.id'), nullable=False)
+    example_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
+    reference_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
@@ -36,23 +42,29 @@ class TrainingExample(Base):
     reference_track = relationship("Track", foreign_keys=[reference_track_id])
     feedback_items = relationship("Feedback", back_populates="training_example")
 
+
 class Feedback(Base):
-    __tablename__ = 'feedback'
+    __tablename__ = "feedback"
 
     id = Column(Integer, primary_key=True)
-    training_example_id = Column(Integer, ForeignKey('training_examples.id'), nullable=False)
-    feedback_type = Column(String, nullable=False)  # 'rhythm', 'eq', 'global', 'arrangement', 'energy'
+    training_example_id = Column(
+        Integer, ForeignKey("training_examples.id"), nullable=False
+    )
+    feedback_type = Column(
+        String, nullable=False
+    )  # 'rhythm', 'eq', 'global', 'arrangement', 'energy'
     feedback_text = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
     training_example = relationship("TrainingExample", back_populates="feedback_items")
 
+
 class UserUpload(Base):
-    __tablename__ = 'user_uploads'
+    __tablename__ = "user_uploads"
 
     id = Column(Integer, primary_key=True)
-    input_track_id = Column(Integer, ForeignKey('tracks.id'), nullable=False)
+    input_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
     # reference_track_id = Column(Integer, ForeignKey('tracks.id'), nullable=True) # we dont need this yet.
 
     user_prompt = Column(Text)

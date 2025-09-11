@@ -3,48 +3,64 @@ from .models import Track, UserUpload
 from datetime import datetime
 from typing import List
 
+
 class AudioRAGOperations:
     def __init__(self, db: AudioRAGDatabase):
         self.db = db
 
     def get_track(self, track_id: int):
-      """Get a track by ID"""
-      session = self.db.get_session()
-
-      try:
-          track = session.query(Track).filter(Track.id == track_id).first()
-          if track:
-              return {
-                  'id': track.id,
-                  'file_path': track.file_path,
-                  'duration': track.duration,
-                  'sample_rate': track.sample_rate,
-                  'embedding': track.global_embedding,
-                  'processed_at': track.processed_at
-              }
-          else:
-              return None
-
-      except Exception as e:
-          print(f"Error getting track {track_id}: {e}")
-          raise
-      finally:
-          session.close()
-
-    def get_track_by_file_path(self, file_path: str) -> bool:
-      """Check if a track with this file path already exists"""
-      session = self.db.get_session()
-      try:
-          existing = session.query(Track).filter(Track.file_path == file_path).first()
-          return existing is not None
-      finally:
-          session.close()
-
-    def add_user_upload(self, input_track_path: str, input_duration: float, input_sample_rate, input_embedding, user_prompt, stage, genre):
+        """Get a track by ID"""
         session = self.db.get_session()
 
         try:
-            input_track = self._add_track(session, input_track_path, input_duration, input_sample_rate, input_embedding)
+            track = session.query(Track).filter(Track.id == track_id).first()
+            if track:
+                return {
+                    "id": track.id,
+                    "file_path": track.file_path,
+                    "duration": track.duration,
+                    "sample_rate": track.sample_rate,
+                    "embedding": track.global_embedding,
+                    "processed_at": track.processed_at,
+                }
+            else:
+                return None
+
+        except Exception as e:
+            print(f"Error getting track {track_id}: {e}")
+            raise
+        finally:
+            session.close()
+
+    def get_track_by_file_path(self, file_path: str) -> bool:
+        """Check if a track with this file path already exists"""
+        session = self.db.get_session()
+        try:
+            existing = session.query(Track).filter(Track.file_path == file_path).first()
+            return existing is not None
+        finally:
+            session.close()
+
+    def add_user_upload(
+        self,
+        input_track_path: str,
+        input_duration: float,
+        input_sample_rate,
+        input_embedding,
+        user_prompt,
+        stage,
+        genre,
+    ):
+        session = self.db.get_session()
+
+        try:
+            input_track = self._add_track(
+                session,
+                input_track_path,
+                input_duration,
+                input_sample_rate,
+                input_embedding,
+            )
             # ref_track = self._add_track(session, ref_track_path, input_duration, input_sample_rate, input_embedding)
             session.flush()  # This should be enough to get the ID
 
@@ -58,7 +74,7 @@ class AudioRAGOperations:
                 # reference_track_id=ref_track_id,
                 user_prompt=user_prompt,
                 stage=stage,
-                genre=genre
+                genre=genre,
             )
             session.add(upload)
             session.commit()
@@ -73,12 +89,20 @@ class AudioRAGOperations:
         finally:
             session.close()
 
-
-    def _add_track(self, session, file_path: str, duration: float, sample_rate: int, embedding: List[float]) -> Track:
+    def _add_track(
+        self,
+        session,
+        file_path: str,
+        duration: float,
+        sample_rate: int,
+        embedding: List[float],
+    ) -> Track:
         """Add a track using the provided session"""
 
         # Check if track already exists
-        existing_track = session.query(Track).filter(Track.file_path == file_path).first()
+        existing_track = (
+            session.query(Track).filter(Track.file_path == file_path).first()
+        )
 
         if existing_track:
             # Update existing track
@@ -94,13 +118,18 @@ class AudioRAGOperations:
                 duration=duration,
                 sample_rate=sample_rate,
                 global_embedding=embedding,
-                processed_at=datetime.now()
+                processed_at=datetime.now(),
             )
             session.add(track)
             return track
 
-
-    def find_similar_tracks(self, embedding: List[float], metric: str = "cosine", limit: int = 5, threshold: float = None) -> List[Track]:
+    def find_similar_tracks(
+        self,
+        embedding: List[float],
+        metric: str = "cosine",
+        limit: int = 5,
+        threshold: float = None,
+    ) -> List[Track]:
         """Find tracks using specified distance metric"""
         session = self.db.get_session()
 

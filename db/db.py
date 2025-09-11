@@ -2,13 +2,16 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from typing import List
 from .models import Track, Base
+
 # from .db_models import TrainingExample, Feedback, UserUpload
 
 
 class AudioRAGDatabase:
     def __init__(self, connection_string: str):
         self.engine = create_engine(connection_string)
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(
+            autocommit=False, autoflush=False, bind=self.engine
+        )
 
     def setup_database(self):
         """Create all tables"""
@@ -27,4 +30,4 @@ class AudioRAGDatabase:
         print("✓ All tables dropped!")
 
     def get_session(self):
-      return self.SessionLocal()
+        return self.SessionLocal()
