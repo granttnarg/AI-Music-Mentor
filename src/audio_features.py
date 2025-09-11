@@ -3,6 +3,7 @@
 import librosa
 import os
 import numpy as np
+from scipy.signal import find_peaks
 
 
 class AudioFeatureService:
@@ -12,10 +13,7 @@ class AudioFeatureService:
         self.hop_length = hop_length
         self.tempo = None
         self.audio_path = None
-
-        self.y = None  # amplitude
-        self.y_harm = None  # harmonic
-        self.y_perc = None  # rhythmic
+        self.y = None
 
     def load_audio_file(self, audio_path):
         """
@@ -37,15 +35,15 @@ class AudioFeatureService:
         Extract global (whole-track) audio features from a song
         No segmentation - just overall track characteristics.
         """
-        y, y_perc, y_harm, sr, hop_length, duration = self._prepare_audio(max_duration)
+        y, y_perc, y_harm, duration = self._prepare_audio(max_duration)
 
         global_features = {
-            "metadata": {"duration": duration, "sample_rate": sr},
-            "rhythm": self._extract_rhythm_features(y_perc, sr, hop_length, duration),
-            "harmony": self._extract_harmony_features(y_harm, sr, hop_length, duration),
-            "energy": self._extract_energy_features(y, hop_length, duration),
-            "spectral": self._extract_spectral_features(y, sr, hop_length),
-            "frequency": self._extract_frequency_features(y, sr, hop_length),
+            "metadata": {"duration": duration, "sample_rate": self.sr},
+            "rhythm": self._extract_rhythm_features(y_perc, duration),
+            "harmony": self._extract_harmony_features(y_harm, duration),
+            "energy": self._extract_energy_features(y, duration),
+            "spectral": self._extract_spectral_features(y),
+            "frequency": self._extract_frequency_features(y),
         }
 
         print(f"## Global features extracted for {self.audio_path}!")
@@ -70,7 +68,6 @@ class AudioFeatureService:
             feature_data = self.filter_feature_set(feature_data, exclude_categories)
         else:
             feature_data = feature_data
-
         # Extract raw features (removed arbitrary scaling)
         vector = np.array(
             [
@@ -211,40 +208,34 @@ class AudioFeatureService:
     def _prepare_audio(self, max_duration):
         """Prepare audio for feature extraction"""
         y = self.y
-        sr = self.sr
-        hop_length = self.hop_length
 
         if max_duration:
-            max_samples = int(max_duration * sr)
+            max_samples = int(max_duration * self.sr)
             y = y[:max_samples]
 
         # Extract harmonic and rhythmic material
-        duration = float(librosa.get_duration(y=y, sr=sr))
+        duration = float(librosa.get_duration(y=y, sr=self.sr))
         y_harm, y_perc = librosa.effects.hpss(y)
 
-        # Store separated audio for use in feature extraction
-        self.y_harm = y_harm
-        self.y_perc = y_perc
-
         print("Audio Prepped")
-        return y, y_perc, y_harm, sr, hop_length, duration
+        return y, y_perc, y_harm, duration
 
-    def _extract_rhythm_features(self, y_perc, sr, hop_length, duration):
+    def _extract_rhythm_features(self, y_perc, duration):
         """Extract rhythm-related features"""
 
         # Tempo and beat consistency
-        tempo, _beats = librosa.beat.beat_track(y=y_perc, sr=sr, hop_length=hop_length)
+        tempo, _beats = librosa.beat.beat_track(y=y_perc, sr=self.sr, hop_length=self.hop_length)
         tempo = float(tempo)
 
         # Save BPM for other methods
         self.tempo = tempo
 
         # Onset feature_data
-        onset_env = librosa.onset.onset_strength(y=y_perc, sr=sr, hop_length=hop_length)
+        onset_env = librosa.onset.onset_strength(y=y_perc, sr=self.sr, hop_length=self.hop_length)
         onsets = librosa.onset.onset_detect(
-            onset_envelope=onset_env, sr=sr, hop_length=hop_length
+            onset_envelope=onset_env, sr=self.sr, hop_length=self.hop_length
         )
-        onset_times = librosa.frames_to_time(onsets, sr=sr, hop_length=hop_length)
+        onset_times = librosa.frames_to_time(onsets, sr=self.sr, hop_length=self.hop_length)
 
         # Rhythmic complexity metrics
         if len(onset_times) > 1:
@@ -268,11 +259,11 @@ class AudioFeatureService:
             "beat_strength": np.mean(onset_env),
         }
 
-    def _extract_harmony_features(self, y_harm, sr, hop_length, duration):
+    def _extract_harmony_features(self, y_harm, duration):
         """Extract harmony-related features"""
 
         # Chroma feature_data
-        chroma = librosa.feature.chroma_cqt(y=y_harm, sr=sr, hop_length=hop_length)
+        chroma = librosa.feature.chroma_cqt(y=y_harm, sr=self.sr, hop_length=self.hop_length)
         chroma_mean = np.mean(chroma, axis=1)
 
         # Key strength and harmonic complexity
@@ -291,10 +282,10 @@ class AudioFeatureService:
             "tonal_stability": 1.0 - np.std(chroma_mean),
         }
 
-    def _extract_energy_features(self, y, hop_length, duration):
+    def _extract_energy_features(self, y, duration):
         """Extract energy-related features"""
         # Energy dynamics
-        rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+        rms = librosa.feature.rms(y=y, hop_length=self.hop_length)[0]
         energy_range = np.max(rms) - np.min(rms)
         avg_energy = np.mean(rms)
 
@@ -302,8 +293,6 @@ class AudioFeatureService:
         energy_trend = np.polyfit(range(len(rms)), rms, 1)[0]
 
         # Peak feature_data
-        from scipy.signal import find_peaks
-
         peaks, _ = find_peaks(rms, height=np.mean(rms))
         peak_density = len(peaks) / duration
 
@@ -315,15 +304,15 @@ class AudioFeatureService:
             "peak_density": peak_density,
         }
 
-    def _extract_spectral_features(self, y, sr, hop_length):
+    def _extract_spectral_features(self, y):
         """Extract spectral characteristics"""
         # Overall spectral characteristics
-        centroid = librosa.feature.spectral_centroid(y=y, sr=sr, hop_length=hop_length)[
+        centroid = librosa.feature.spectral_centroid(y=y, sr=self.sr, hop_length=self.hop_length)[
             0
         ]
-        rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, hop_length=hop_length)[0]
+        rolloff = librosa.feature.spectral_rolloff(y=y, sr=self.sr, hop_length=self.hop_length)[0]
         bandwidth = librosa.feature.spectral_bandwidth(
-            y=y, sr=sr, hop_length=hop_length
+            y=y, sr=self.sr, hop_length=self.hop_length
         )[0]
 
         print("Extract Spectral Features")
@@ -335,11 +324,11 @@ class AudioFeatureService:
             "avg_bandwidth": np.mean(bandwidth),
         }
 
-    def _extract_frequency_features(self, y, sr, hop_length):
+    def _extract_frequency_features(self, y):
         """Extract frequency band feature_data"""
         # Frequency content feature_data
-        S = np.abs(librosa.stft(y, hop_length=hop_length))
-        freqs = librosa.fft_frequencies(sr=sr)
+        S = np.abs(librosa.stft(y, hop_length=self.hop_length))
+        freqs = librosa.fft_frequencies(sr=self.sr)
 
         # Define frequency bands
         low_band = (freqs >= 20) & (freqs <= 250)  # Bass/kick

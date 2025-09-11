@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from src.audio_features import AudioFeatureService
 
 

@@ -46,7 +46,8 @@ if st.button("Submit"):
 
     if uploaded_file is not None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_path = uploads_dir / f"{timestamp}--{uploaded_file.name}"
+        new_file_info =  f"{timestamp}--{uploaded_file.name}"
+        file_path = uploads_dir / new_file_info
 
         # Save the MP3 file
         with open(file_path, "wb") as f:
@@ -56,6 +57,7 @@ if st.button("Submit"):
         # Create metadata for JSON sidecar
         # TODO: We should extend this to a DB entry later
         service = AudioFeatureService()
+        global_features = "N/A"
         try:
             global_features = service.load_audio_file(
                 file_path
@@ -65,7 +67,6 @@ if st.button("Submit"):
         except Exception as e:
             st.error(f"Error processing audio type : {e} for: {uploaded_file.name}")
 
-        global_features = "N/A"
         metadata = {
             "original_filename": uploaded_file.name,
             "file_path": str(file_path),
@@ -76,7 +77,7 @@ if st.button("Submit"):
             "processed": {
                 "global_feature_embedding": service.create_embedding_vector(
                     global_features
-                ).tolist(),  # Convert to list
+                ),
                 "global_feature_data": service.build_feature_data_object(
                     global_features, ["rhythm", "energy"]
                 ),
@@ -87,7 +88,7 @@ if st.button("Submit"):
         pprint(f"META_DATA: {metadata}")
 
         # Save JSON sidecar file
-        json_path = uploads_dir / f"{timestamp}--{uploaded_file.name}.json"
+        json_path = uploads_dir / (new_file_info + ".json")
         with open(json_path, "w") as f:
             json.dump(metadata, f, default=numpy_serializer, indent=2)
 
