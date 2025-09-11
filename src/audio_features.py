@@ -224,18 +224,24 @@ class AudioFeatureService:
         """Extract rhythm-related features"""
 
         # Tempo and beat consistency
-        tempo, _beats = librosa.beat.beat_track(y=y_perc, sr=self.sr, hop_length=self.hop_length)
+        tempo, _beats = librosa.beat.beat_track(
+            y=y_perc, sr=self.sr, hop_length=self.hop_length
+        )
         tempo = float(tempo)
 
         # Save BPM for other methods
         self.tempo = tempo
 
         # Onset feature_data
-        onset_env = librosa.onset.onset_strength(y=y_perc, sr=self.sr, hop_length=self.hop_length)
+        onset_env = librosa.onset.onset_strength(
+            y=y_perc, sr=self.sr, hop_length=self.hop_length
+        )
         onsets = librosa.onset.onset_detect(
             onset_envelope=onset_env, sr=self.sr, hop_length=self.hop_length
         )
-        onset_times = librosa.frames_to_time(onsets, sr=self.sr, hop_length=self.hop_length)
+        onset_times = librosa.frames_to_time(
+            onsets, sr=self.sr, hop_length=self.hop_length
+        )
 
         # Rhythmic complexity metrics
         if len(onset_times) > 1:
@@ -263,7 +269,9 @@ class AudioFeatureService:
         """Extract harmony-related features"""
 
         # Chroma feature_data
-        chroma = librosa.feature.chroma_cqt(y=y_harm, sr=self.sr, hop_length=self.hop_length)
+        chroma = librosa.feature.chroma_cqt(
+            y=y_harm, sr=self.sr, hop_length=self.hop_length
+        )
         chroma_mean = np.mean(chroma, axis=1)
 
         # Key strength and harmonic complexity
@@ -307,10 +315,12 @@ class AudioFeatureService:
     def _extract_spectral_features(self, y):
         """Extract spectral characteristics"""
         # Overall spectral characteristics
-        centroid = librosa.feature.spectral_centroid(y=y, sr=self.sr, hop_length=self.hop_length)[
-            0
-        ]
-        rolloff = librosa.feature.spectral_rolloff(y=y, sr=self.sr, hop_length=self.hop_length)[0]
+        centroid = librosa.feature.spectral_centroid(
+            y=y, sr=self.sr, hop_length=self.hop_length
+        )[0]
+        rolloff = librosa.feature.spectral_rolloff(
+            y=y, sr=self.sr, hop_length=self.hop_length
+        )[0]
         bandwidth = librosa.feature.spectral_bandwidth(
             y=y, sr=self.sr, hop_length=self.hop_length
         )[0]

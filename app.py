@@ -46,7 +46,7 @@ if st.button("Submit"):
 
     if uploaded_file is not None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        new_file_info =  f"{timestamp}--{uploaded_file.name}"
+        new_file_info = f"{timestamp}--{uploaded_file.name}"
         file_path = uploads_dir / new_file_info
 
         # Save the MP3 file
