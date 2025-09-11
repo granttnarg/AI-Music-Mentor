@@ -1,0 +1,54 @@
+{
+  "original_filename": "M-High - The Saw That Broke The Camels Back (KiNK Dub Remix).mp3",
+  "file_type": "reference",
+  "file_path": "uploads/session_20250911_175025/reference--M-High - The Saw That Broke The Camels Back (KiNK Dub Remix)--20250911_175029.mp3",
+  "upload_datetime": "2025-09-11T17:50:29.566936",
+  "stage": "Sketch",
+  "user_question": "help me finish the arrangment",
+  "file_size_bytes": 12567493,
+  "session_id": "session_20250911_175025",
+  "processed": {
+    "global_feature_embedding": [
+      0.45333059210526316,
+      0.36088888888888887,
+      0.272492266424384,
+      0.045700067510344874,
+      0.2313852459192276,
+      0.7122851014137268,
+      0.08131946623325348,
+      0.7718979120254517,
+      0.49486276507377625,
+      0.36650437116622925,
+      0.0010805413637329988,
+      0.7309333333333333,
+      0.2905374669420118,
+      0.5211058201348909,
+      0.9314131140708923,
+      0.04309782013297081,
+      0.025489017367362976,
+      0.0462714321911335,
+      0.591422438621521
+    ],
+    "global_feature_data": {
+      "metadata": {
+        "duration": 150.0,
+        "sample_rate": 22050
+      },
+      "energy": {
+        "dynamic_range": 0.49486276507377625,
+        "average_energy": 0.36650437116622925,
+        "energy_trend": -1.0805413637329987e-06,
+        "peak_density": 18.273333333333333,
+        "beat_strength": 0.7995876669883728
+      },
+      "rhythm": {
+        "tempo": 90.66611842105263,
+        "onset_density": 5.413333333333333,
+        "syncopation_level": 0.272492266424384,
+        "rhythmic_variance": 0.004570006751034488,
+        "beat_strength": 0.7995876669883728
+      }
+    },
+    "processed_at": "2025-09-11T17:50:39.936979"
+  }
+}
