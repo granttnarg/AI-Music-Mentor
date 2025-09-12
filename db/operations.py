@@ -62,9 +62,14 @@ class AudioRAGOperations:
                 input_sample_rate,
                 input_embedding,
             )
-            ref_track = self._add_track(session, ref_track_path, input_duration, input_sample_rate, input_embedding)
+            ref_track = self._add_track(
+                session,
+                ref_track_path,
+                input_duration,
+                input_sample_rate,
+                input_embedding,
+            )
             session.flush()  # This should be enough to get the ID
-
 
             print(f"Got track ID: {input_track.id}")  # Debug line
 
@@ -92,7 +97,9 @@ class AudioRAGOperations:
     # We will want to create tracks from the uploads at the same time as the training example and feedback
     # However this helps us get some examples in our DB to test out the RAG flow we will come back to this.
     # TODO: ADJUST TO CREATE TRACKS ON THE FLY
-    def add_training_example_for_mockdata(self, example_track_path, reference_track_path, feedback_items):
+    def add_training_example_for_mockdata(
+        self, example_track_path, reference_track_path, feedback_items
+    ):
         """
         Add a training example with feedback.
 
@@ -108,19 +115,22 @@ class AudioRAGOperations:
         session = self.db.get_session()
         try:
             # Get or create example track
-            example_track = session.query(Track).filter_by(file_path=example_track_path).first()
+            example_track = (
+                session.query(Track).filter_by(file_path=example_track_path).first()
+            )
             if not example_track:
                 raise ValueError(f"Example track not found: {example_track_path}")
 
             # Get or create reference track
-            reference_track = session.query(Track).filter_by(file_path=reference_track_path).first()
+            reference_track = (
+                session.query(Track).filter_by(file_path=reference_track_path).first()
+            )
             if not reference_track:
                 raise ValueError(f"Reference track not found: {reference_track_path}")
 
             # Create training example
             training_example = TrainingExample(
-                example_track_id=example_track.id,
-                reference_track_id=reference_track.id
+                example_track_id=example_track.id, reference_track_id=reference_track.id
             )
             session.add(training_example)
             session.flush()  # Get the ID
@@ -129,8 +139,8 @@ class AudioRAGOperations:
             for feedback_item in feedback_items:
                 feedback = Feedback(
                     training_example_id=training_example.id,
-                    feedback_type=feedback_item['feedback_type'],
-                    feedback_text=feedback_item['feedback_text']
+                    feedback_type=feedback_item["feedback_type"],
+                    feedback_text=feedback_item["feedback_text"],
                 )
                 session.add(feedback)
 
@@ -181,7 +191,6 @@ class AudioRAGOperations:
             raise
         finally:
             session.close()
-
 
     ## PRIVATE METHODS ##
 

@@ -10,12 +10,15 @@ import os
 if __name__ == "__main__":
 
     from dotenv import load_dotenv
+
     load_dotenv()
 
     # IMPORTING TRACKS FROM OUR JSON SIDECAR SETUP
     ## TESTING OUT DB SETUP FOR UPLOADS AND BASIC SIMILARITY SEARCH
-    #TODO: remove json sidecar setup and save from app.py directly into the DB
-    connection_url = os.getenv('DB_CONNECTION_URL', 'postgresql://postgres:<ADD_TOENV_FILE>')
+    # TODO: remove json sidecar setup and save from app.py directly into the DB
+    connection_url = os.getenv(
+        "DB_CONNECTION_URL", "postgresql://postgres:<ADD_TOENV_FILE>"
+    )
     db = AudioRAGDatabase(connection_url)
     ops = AudioRAGOperations(db)
     db.reset_database()
@@ -43,7 +46,7 @@ if __name__ == "__main__":
                     if session_id and file_type:
                         sessions[session_id][file_type] = {
                             "json_file": json_file,
-                            "data": audio_data
+                            "data": audio_data,
                         }
                     else:
                         print(f"ERROR:  Missing session_id or file_type in {json_file}")
@@ -57,7 +60,9 @@ if __name__ == "__main__":
         ref_file = files["reference"]
 
         if not input_file or not ref_file:
-            print(f"⚠️  Incomplete session {session_id} - missing input or reference file")
+            print(
+                f"⚠️  Incomplete session {session_id} - missing input or reference file"
+            )
             continue
 
         try:
@@ -77,14 +82,20 @@ if __name__ == "__main__":
             upload_id = ops.add_user_upload(
                 input_track_path=input_data["original_filename"],
                 ref_track_path=ref_data["original_filename"],
-                input_duration=input_data["processed"]["global_feature_data"]["metadata"]["duration"],
-                input_sample_rate=input_data["processed"]["global_feature_data"]["metadata"]["sample_rate"],
+                input_duration=input_data["processed"]["global_feature_data"][
+                    "metadata"
+                ]["duration"],
+                input_sample_rate=input_data["processed"]["global_feature_data"][
+                    "metadata"
+                ]["sample_rate"],
                 input_embedding=input_data["processed"]["global_feature_embedding"],
                 user_prompt=input_data["user_question"],  # Use the actual user question
                 stage=input_data["stage"],
                 genre="techno",  # You might want to extract this or make it dynamic
             )
-            print(f"Uploaded session {session_id}: {input_filename} + {ref_filename} (upload_id: {upload_id})")
+            print(
+                f"Uploaded session {session_id}: {input_filename} + {ref_filename} (upload_id: {upload_id})"
+            )
 
         except Exception as e:
             print(f"✗ Failed to process session {session_id}: {e}")
@@ -99,7 +110,9 @@ if __name__ == "__main__":
     # Test similarity search
     if ids:
         track = ops.get_track(ids[0][0])  # Get the first track
-        print(f"\nTesting similarity search with track: {track['file_path'] if track else 'None'}")
+        print(
+            f"\nTesting similarity search with track: {track['file_path'] if track else 'None'}"
+        )
 
         if track:
             # Use the embedding from the dictionary

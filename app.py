@@ -19,14 +19,15 @@ def numpy_serializer(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
-def process_and_save_file(file, file_type, session_dir, session_id, dropdown_option, text_input):
+def process_and_save_file(
+    file, file_type, session_dir, session_id, dropdown_option, text_input
+):
     """Process and save a single file with its metadata"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     clean_name = Path(file.name).stem  # Remove extension
     new_file_info = f"{file_type}--{clean_name}--{timestamp}"
     file_path = session_dir / f"{new_file_info}.mp3"
-
 
     with open(file_path, "wb") as f:
         f.write(file.getbuffer())
@@ -36,9 +37,7 @@ def process_and_save_file(file, file_type, session_dir, session_id, dropdown_opt
     service = AudioFeatureService()
     global_features = "N/A"
     try:
-        global_features = service.load_audio_file(
-            file_path
-        ).extract_global_features(
+        global_features = service.load_audio_file(file_path).extract_global_features(
             max_duration=150
         )  # Set to a short time so we can TEST. REMOVE THIS LATER
     except Exception as e:
@@ -87,7 +86,10 @@ st.caption(
 
 
 input_file = st.file_uploader("Upload Unfinished track - MP3 file", type=["mp3"])
-ref_file = st.file_uploader("Upload Reference track, something your aiming to get closer to - MP3 file", type=["mp3"])
+ref_file = st.file_uploader(
+    "Upload Reference track, something your aiming to get closer to - MP3 file",
+    type=["mp3"],
+)
 text_input = st.text_input("What do you need help with on your track?:")
 dropdown_option = st.selectbox(
     "Stage your track is at:", ["Sketch", "Half Finished", "Almost Finished"]
@@ -103,7 +105,6 @@ if st.button("Submit"):
         session_dir.mkdir(exist_ok=True)
 
         st.success(f"Created session folder: {session_dir}")
-
 
         # Process input file
         input_file_path, input_json_path = process_and_save_file(
@@ -133,14 +134,14 @@ if st.button("Submit"):
                 "input_track": {
                     "original_name": input_file.name,
                     "saved_path": str(input_file_path) if input_file_path else None,
-                    "metadata_path": str(input_json_path) if input_json_path else None
+                    "metadata_path": str(input_json_path) if input_json_path else None,
                 },
                 "reference_track": {
                     "original_name": ref_file.name,
                     "saved_path": str(ref_file_path) if ref_file_path else None,
-                    "metadata_path": str(ref_json_path) if ref_json_path else None
-                }
-            }
+                    "metadata_path": str(ref_json_path) if ref_json_path else None,
+                },
+            },
         }
 
         session_json_path = session_dir / "session_info.json"
