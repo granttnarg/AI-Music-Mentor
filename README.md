@@ -33,8 +33,8 @@ uv run streamlit run app.py
 4. When running a specific module you must use the -m flag so uv can see it from the root directory and imports work
    as expected.
 
-```
-  uv run python -m services.audio_rag
+```bash
+uv run python -m services.audio_rag
 ```
 
 The dashboard will open in your browser at `http://localhost:8501`
@@ -58,10 +58,14 @@ uv run pytest
 ```
 ├── app.py              # Streamlit dashboard
 ├── main.py             # Test script for audio feature extraction
+├── admin.py            # Database admin utilities
+├── services/           # Core business logic
+│   └── audio_rag.py    # RAG system for feedback
 ├── src/
 │   ├── audio_features.py   # Audio feature extraction service
 │   ├── rag.py             # RAG system for feedback
 │   └── pre-processing.py  # Data preprocessing
+├── db/                 # Database models and operations
 ├── data/
 │   ├── raw/              # Training audio files
 │   ├── processed/        # Extracted features
