@@ -66,7 +66,7 @@ def process_and_save_file(file, file_type, session_dir, session_id, dropdown_opt
     }
 
     # Save JSON sidecar file
-    json_path = session_dir / f"{new_file_info}.json"
+    json_path = session_dir / f"{new_file_info}.mp3.json"
     with open(json_path, "w") as f:
         json.dump(metadata, f, default=numpy_serializer, indent=2)
 
