@@ -13,6 +13,7 @@ __pycache__/
 
 #for basic json sidecar
 *.mp3.json
+uploads/*/*.json
 
 # Models (if large)
 models/*.pkl
