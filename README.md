@@ -30,6 +30,13 @@ uv sync
 uv run streamlit run app.py
 ```
 
+4. When running a specific module you must use the -m flag so uv can see it from the root directory and imports work
+   as expected.
+
+```
+  uv run python -m services.audio_rag
+```
+
 The dashboard will open in your browser at `http://localhost:8501`
 
 ### Development
