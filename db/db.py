@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from typing import List
-from .models import Track, Base
+from .models import Base
 
 # from .db_models import TrainingExample, Feedback, UserUpload
 
