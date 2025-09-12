@@ -26,7 +26,7 @@ class Track(Base):
         "TrainingExample", foreign_keys="TrainingExample.reference_track_id"
     )
     input_uploads = relationship("UserUpload", foreign_keys="UserUpload.input_track_id")
-    # reference_uploads = relationship("UserUpload", foreign_keys="UserUpload.reference_track_id")
+    reference_uploads = relationship("UserUpload", foreign_keys="UserUpload.reference_track_id")
 
 
 class TrainingExample(Base):
@@ -65,7 +65,7 @@ class UserUpload(Base):
 
     id = Column(Integer, primary_key=True)
     input_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
-    # reference_track_id = Column(Integer, ForeignKey('tracks.id'), nullable=True) # we dont need this yet.
+    reference_track_id = Column(Integer, ForeignKey('tracks.id'), nullable=False) # we dont need this yet.
 
     user_prompt = Column(Text)
     stage = Column(String)
@@ -74,4 +74,4 @@ class UserUpload(Base):
 
     # Relationships
     input_track = relationship("Track", foreign_keys=[input_track_id])
-    # reference_track = relationship("Track", foreign_keys=[reference_track_id])
+    reference_track = relationship("Track", foreign_keys=[reference_track_id])
