@@ -1,5 +1,5 @@
 from .db import AudioRAGDatabase
-from .models import Track, UserUpload
+from .models import Track, UserUpload, Feedback, TrainingExample
 from datetime import datetime
 from typing import List
 
@@ -44,6 +44,7 @@ class AudioRAGOperations:
     def add_user_upload(
         self,
         input_track_path: str,
+        ref_track_path: str,
         input_duration: float,
         input_sample_rate,
         input_embedding,
@@ -61,17 +62,15 @@ class AudioRAGOperations:
                 input_sample_rate,
                 input_embedding,
             )
-            # ref_track = self._add_track(session, ref_track_path, input_duration, input_sample_rate, input_embedding)
+            ref_track = self._add_track(session, ref_track_path, input_duration, input_sample_rate, input_embedding)
             session.flush()  # This should be enough to get the ID
 
-            # Remove the refresh line and just try to access the ID directly
-            input_track_id = input_track.id
 
-            print(f"Got track ID: {input_track_id}")  # Debug line
+            print(f"Got track ID: {input_track.id}")  # Debug line
 
             upload = UserUpload(
-                input_track_id=input_track_id,
-                # reference_track_id=ref_track_id,
+                input_track_id=input_track.id,
+                reference_track_id=ref_track.id,
                 user_prompt=user_prompt,
                 stage=stage,
                 genre=genre,
@@ -89,39 +88,60 @@ class AudioRAGOperations:
         finally:
             session.close()
 
-    def _add_track(
-        self,
-        session,
-        file_path: str,
-        duration: float,
-        sample_rate: int,
-        embedding: List[float],
-    ) -> Track:
-        """Add a track using the provided session"""
+    # Currently we make a training example using tracks in our DB, this is not how it should work for the final app.
+    # We will want to create tracks from the uploads at the same time as the training example and feedback
+    # However this helps us get some examples in our DB to test out the RAG flow we will come back to this.
+    # TODO: ADJUST TO CREATE TRACKS ON THE FLY
+    def add_training_example_for_mockdata(self, example_track_path, reference_track_path, feedback_items):
+        """
+        Add a training example with feedback.
 
-        # Check if track already exists
-        existing_track = (
-            session.query(Track).filter(Track.file_path == file_path).first()
-        )
+        Args:
+            example_track_path (str): Path to the example track
+            reference_track_path (str): Path to the reference track
+            feedback_items (list): List of dicts with 'feedback_type' and 'feedback_text'
+                                e.g. [{'feedback_type': 'rhythm', 'feedback_text': 'Too slow'}]
 
-        if existing_track:
-            # Update existing track
-            existing_track.duration = duration
-            existing_track.sample_rate = sample_rate
-            existing_track.global_embedding = embedding
-            existing_track.processed_at = datetime.now()
-            return existing_track
-        else:
-            # Create new track
-            track = Track(
-                file_path=file_path,
-                duration=duration,
-                sample_rate=sample_rate,
-                global_embedding=embedding,
-                processed_at=datetime.now(),
+        Returns:
+            int: The training example ID
+        """
+        session = self.db.get_session()
+        try:
+            # Get or create example track
+            example_track = session.query(Track).filter_by(file_path=example_track_path).first()
+            if not example_track:
+                raise ValueError(f"Example track not found: {example_track_path}")
+
+            # Get or create reference track
+            reference_track = session.query(Track).filter_by(file_path=reference_track_path).first()
+            if not reference_track:
+                raise ValueError(f"Reference track not found: {reference_track_path}")
+
+            # Create training example
+            training_example = TrainingExample(
+                example_track_id=example_track.id,
+                reference_track_id=reference_track.id
             )
-            session.add(track)
-            return track
+            session.add(training_example)
+            session.flush()  # Get the ID
+
+            # Add feedback items
+            for feedback_item in feedback_items:
+                feedback = Feedback(
+                    training_example_id=training_example.id,
+                    feedback_type=feedback_item['feedback_type'],
+                    feedback_text=feedback_item['feedback_text']
+                )
+                session.add(feedback)
+
+            session.commit()
+            return training_example.id
+
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
 
     def find_similar_tracks(
         self,
@@ -161,3 +181,40 @@ class AudioRAGOperations:
             raise
         finally:
             session.close()
+
+
+    ## PRIVATE METHODS ##
+
+    def _add_track(
+        self,
+        session,
+        file_path: str,
+        duration: float,
+        sample_rate: int,
+        embedding: List[float],
+    ) -> Track:
+        """Add a track using the provided session"""
+
+        # Check if track already exists
+        existing_track = (
+            session.query(Track).filter(Track.file_path == file_path).first()
+        )
+
+        if existing_track:
+            # Update existing track
+            existing_track.duration = duration
+            existing_track.sample_rate = sample_rate
+            existing_track.global_embedding = embedding
+            existing_track.processed_at = datetime.now()
+            return existing_track
+        else:
+            # Create new track
+            track = Track(
+                file_path=file_path,
+                duration=duration,
+                sample_rate=sample_rate,
+                global_embedding=embedding,
+                processed_at=datetime.now(),
+            )
+            session.add(track)
+            return track
