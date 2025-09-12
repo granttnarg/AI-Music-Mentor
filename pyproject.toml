@@ -1,14 +1,18 @@
 [project]
 name = "ai-music-mentor"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI Feedback Mentor for Music Production using LLM/RAG and Librosa Feature Extraction"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "black>=25.1.0",
+    "langchain>=0.3.27",
+    "langchain-postgres>=0.0.15",
     "librosa>=0.11.0",
     "numpy>=2.2.6",
+    "psycopg2-binary>=2.9.10",
     "pytest>=8.4.2",
+    "python-dotenv>=1.1.1",
     "scikit-learn>=1.7.2",
     "streamlit>=1.49.1",
 ]
