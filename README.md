@@ -30,27 +30,44 @@ uv sync
 
 ```bash
 cp .env.example .env
-# Edit .env to add your database connection URL
+# Edit .env with your secure database credentials and connection details
 ```
 
-4. Set up database:
+4. Start Docker services (PostgreSQL + PgAdmin):
 
 ```bash
-uv run python -m admin  # Use admin interface to manage database
+# Start database and admin interface
+docker-compose up -d
+
+# Check containers are running
+docker-compose ps
+
+# View logs if needed
+docker-compose logs
 ```
 
-5. Start Ollama and pull the model:
+5. Set up database:
+
+```bash
+uv run python -m admin  # Use admin interface to add DB examples for the RAG system to compare against.
+```
+
+6. Start Ollama and pull the model:
 
 ```bash
 ollama serve
 ollama pull llama3.2:latest
 ```
 
-6. Run the Streamlit app:
+7. Run the Streamlit app:
 
 ```bash
 uv run streamlit run app.py
 ```
+
+The dashboard will open in your browser at `http://localhost:8501`
+
+**Note**: Docker services must be running before starting the Streamlit app as it requires the PostgreSQL database connection.
 
 ### Running Modules
 
@@ -59,8 +76,6 @@ When running specific modules, use the -m flag so uv can resolve imports from th
 ```bash
 uv run python -m services.audio_rag
 ```
-
-The dashboard will open in your browser at `http://localhost:8501`
 
 ### Development
 
@@ -76,12 +91,29 @@ Run tests:
 uv run pytest
 ```
 
+### Docker Management
+
+Stop services:
+```bash
+docker-compose down
+```
+
+Rebuild after changes:
+```bash
+docker-compose down -v  # Remove volumes to wipe data
+docker-compose up -d    # Rebuild with fresh data
+```
+
+Access database directly:
+- **PostgreSQL**: `localhost:5434`
+- **PgAdmin**: `http://localhost:8080` (use credentials from .env)
+
 ### Project Structure
 
 ```
-├── app.py                  # Main Streamlit dashboard
-├── admin.py                # Database administration interface
-├── main.py                 # Audio feature extraction testing
+├── app.py                  # Main Streamlit User dashboard
+├── admin.py                # Streamlit Admin dasboard to popular data via UI
+├── main.py                 # Main App file
 ├── pyproject.toml          # Project dependencies and configuration
 ├── services/
 │   └── audio_rag.py        # RAG system with LLM integration
@@ -102,7 +134,7 @@ uv run pytest
 
 ## How it works
 
-1. **Upload** your unfinished MP3 track through the Streamlit interface
+1. **Upload** your unfinished MP3 track and a reference through the Streamlit interface
 2. **Select** your music genre (deep techno, hard techno, house, etc.)
 3. **Enter** specific questions or areas you want feedback on
 4. **Get** AI-powered arrangement advice using:
@@ -114,7 +146,7 @@ uv run pytest
 
 - **Audio Analysis**: Extracts musical features using Librosa (tempo, key, spectral features, etc.)
 - **RAG System**: Retrieval-augmented generation for contextual feedback
-- **Database Storage**: PostgreSQL backend for tracks, features, and user feedback
+- **Database Storage**: PostgreSQL/pgvector backend for tracks, features, and user feedback
 - **Admin Interface**: Tools for managing training data and user feedback
-- **LangSmith Integration**: Observability and tracing for LLM interactions
+- **LangChain/Smith Integration**: Observability and tracing for LLM interactions
 - **Genre Support**: Specialized for electronic music genres (techno, house, electro, etc.)
