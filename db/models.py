@@ -74,6 +74,11 @@ class UserUpload(Base):
     user_prompt = Column(Text)
     stage = Column(String)
     genre = Column(String)
+    session_id = Column(String, nullable=False)
+    input_file_size_bytes = Column(Integer)
+    reference_file_size_bytes = Column(Integer)
+    input_original_filename = Column(String)
+    reference_original_filename = Column(String)
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
