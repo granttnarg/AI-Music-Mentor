@@ -86,10 +86,18 @@ st.caption(
 
 track_genre = st.selectbox("Unfinished Track Genre:", GENRES)
 input_file = st.file_uploader("Upload Unfinished track - MP3 file", type=["mp3"])
+
+if input_file:
+    st.audio(input_file)
+
 ref_file = st.file_uploader(
     "Upload Reference track, something your aiming to get closer to - MP3 file",
     type=["mp3"],
 )
+
+if ref_file:
+    st.audio(ref_file)
+
 text_input = st.text_input("What do you need help with on your track?:")
 dropdown_option = st.selectbox(
     "Stage your track is at:", ["Sketch", "Half Finished", "Almost Finished"]

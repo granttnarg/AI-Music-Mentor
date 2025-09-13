@@ -9,12 +9,17 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_ollama import ChatOllama
 
+# LangSmith imports
+from langsmith import traceable
+
 
 class AudioRAG:
     def __init__(self, db: AudioRAGDatabase, llm_model: str = "llama3.2:latest"):
         self.db = db
         self.operations = AudioRAGOperations(db)
         self.llm_model = llm_model
+
+        os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
         # Initialize RAG components
         self.prompt = self.create_prompt_template()
@@ -26,6 +31,7 @@ class AudioRAG:
         )
         self.chain = self.prompt | self.llm | self.output_parser
 
+    @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
         self, user_upload_id: int, k: int = 5, metric: str = "cosine"
     ) -> List[Dict[str, Any]]:
@@ -41,7 +47,7 @@ class AudioRAG:
             List of dictionaries containing training example data and similarity info
         """
         session = self.db.get_session()
-
+        
         try:
             # Get the user upload and its input track
             user_upload = (
@@ -137,7 +143,24 @@ class AudioRAG:
                     }
                     results.append(result)
 
-            return results, user_upload
+            # Create summary for LangSmith output tracking
+            retrieval_summary = {
+                "user_upload_id": user_upload_id,
+                "k_requested": k,
+                "k_found": len(results),
+                "metric": metric,
+                "user_genre": user_upload.genre if user_upload else None,
+                "retrieved_tracks": [
+                    {
+                        "training_id": r["training_example_id"],
+                        "track_name": r["example_track"]["file_path"].split("/")[-1],
+                        "feedback_types": [fb["type"] for fb in r["feedback"]]
+                    } for r in results
+                ]
+            }
+            
+            # This will be captured in the trace output
+            return results, user_upload, retrieval_summary
 
         except Exception as e:
             print(f"Error retrieving similar examples: {e}")
@@ -145,6 +168,7 @@ class AudioRAG:
         finally:
             session.close()
 
+    @traceable
     def format_examples_for_prompt(self, similar_examples: List[Dict[str, Any]], user_upload: UserUpload) -> str:
         """
         Format retrieved similar examples into a structured string for the prompt
@@ -240,12 +264,13 @@ class AudioRAG:
             print(f"And that the model '{self.llm_model}' is available")
             return False
 
+    @traceable
     def generate_feedback(self, user_upload_id: int, question: str = "", k: int = 5) -> str:
         """
         Complete RAG pipeline: retrieve, format, prompt, and generate feedback
         """
         # Retrieve similar examples
-        similar_examples, user_upload = self.retrieve_similar_examples(user_upload_id, k=k)
+        similar_examples, user_upload, retrieval_info = self.retrieve_similar_examples(user_upload_id, k=k)
 
         # Format examples for prompt
         formatted_examples = self.format_examples_for_prompt(similar_examples, user_upload)
