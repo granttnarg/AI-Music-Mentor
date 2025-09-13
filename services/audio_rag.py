@@ -25,9 +25,7 @@ class AudioRAG:
         self.prompt = self.create_prompt_template()
         self.output_parser = StrOutputParser()
         self.llm = ChatOllama(
-            model=llm_model,
-            temperature=0.95,
-            base_url="http://localhost:11434"
+            model=llm_model, temperature=0.95, base_url="http://localhost:11434"
         )
         self.chain = self.prompt | self.llm | self.output_parser
 
@@ -47,7 +45,7 @@ class AudioRAG:
             List of dictionaries containing training example data and similarity info
         """
         session = self.db.get_session()
-        
+
         try:
             # Get the user upload and its input track
             user_upload = (
@@ -154,11 +152,12 @@ class AudioRAG:
                     {
                         "training_id": r["training_example_id"],
                         "track_name": r["example_track"]["file_path"].split("/")[-1],
-                        "feedback_types": [fb["type"] for fb in r["feedback"]]
-                    } for r in results
-                ]
+                        "feedback_types": [fb["type"] for fb in r["feedback"]],
+                    }
+                    for r in results
+                ],
             }
-            
+
             # This will be captured in the trace output
             return results, user_upload, retrieval_summary
 
@@ -169,7 +168,9 @@ class AudioRAG:
             session.close()
 
     @traceable
-    def format_examples_for_prompt(self, similar_examples: List[Dict[str, Any]], user_upload: UserUpload) -> str:
+    def format_examples_for_prompt(
+        self, similar_examples: List[Dict[str, Any]], user_upload: UserUpload
+    ) -> str:
         """
         Format retrieved similar examples into a structured string for the prompt
         Include user upload context (prompt stage, genre) and feedback examples
@@ -190,12 +191,12 @@ class AudioRAG:
             example_text = f"Example {i}:"
 
             # Add basic example track info
-            example_track = example.get('example_track', {})
+            example_track = example.get("example_track", {})
             example_text += f"\n  Track: {os.path.basename(example_track.get('file_path', 'Unknown'))}"
             example_text += f"\n  Duration: {example_track.get('duration', 'Unknown')}s"
 
             # Add feedback - this is the main learning content
-            feedback_items = example.get('feedback', [])
+            feedback_items = example.get("feedback", [])
             if feedback_items:
                 example_text += "\n  Feedback:"
                 for feedback in feedback_items:
@@ -208,7 +209,9 @@ class AudioRAG:
         context += "\n\n".join(formatted_examples)
 
         # Add summary of example quality
-        total_feedback_items = sum(len(ex.get('feedback', [])) for ex in similar_examples)
+        total_feedback_items = sum(
+            len(ex.get("feedback", [])) for ex in similar_examples
+        )
         context += f"\n\n[Retrieved {len(similar_examples)} examples with {total_feedback_items} total feedback items]"
 
         return context
@@ -265,20 +268,30 @@ class AudioRAG:
             return False
 
     @traceable
-    def generate_feedback(self, user_upload_id: int, question: str = "", k: int = 5) -> str:
+    def generate_feedback(
+        self, user_upload_id: int, question: str = "", k: int = 5
+    ) -> str:
         """
         Complete RAG pipeline: retrieve, format, prompt, and generate feedback
         """
         # Retrieve similar examples
-        similar_examples, user_upload, retrieval_info = self.retrieve_similar_examples(user_upload_id, k=k)
+        similar_examples, user_upload, retrieval_info = self.retrieve_similar_examples(
+            user_upload_id, k=k
+        )
 
         # Format examples for prompt
-        formatted_examples = self.format_examples_for_prompt(similar_examples, user_upload)
+        formatted_examples = self.format_examples_for_prompt(
+            similar_examples, user_upload
+        )
 
         # Prepare input for the chain
         chain_input = {
             "examples": formatted_examples,
-            "question": question if question else f"Please provide feedback on my {user_upload.genre} track."
+            "question": (
+                question
+                if question
+                else f"Please provide feedback on my {user_upload.genre} track."
+            ),
         }
 
         # Generate feedback using the pre-initialized RAG chain
@@ -309,11 +322,15 @@ if __name__ == "__main__":
     # Test the complete RAG pipeline with user upload ID 1
     try:
         # Test retrieval and formatting
-        similar_examples, user_upload = rag.retrieve_similar_examples(user_upload_id=1, k=3)
-        formatted_examples = rag.format_examples_for_prompt(similar_examples, user_upload)
+        similar_examples, user_upload = rag.retrieve_similar_examples(
+            user_upload_id=1, k=3
+        )
+        formatted_examples = rag.format_examples_for_prompt(
+            similar_examples, user_upload
+        )
         print("=== Formatted Examples ===")
         print(formatted_examples)
-        print("\n" + "="*50 + "\n")
+        print("\n" + "=" * 50 + "\n")
 
         # Test complete feedback generation
         feedback = rag.generate_feedback(user_upload_id=1, k=3)

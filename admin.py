@@ -9,6 +9,7 @@ import os
 
 load_dotenv()
 
+
 # Initialize database connection
 @st.cache_resource
 def get_database():
@@ -19,18 +20,19 @@ def get_database():
     db = AudioRAGDatabase(connection_url)
     return AudioRAGOperations(db)
 
+
 def process_and_save_training_file(file, file_type, session_dir):
     """Process and save a training file - returns processed audio data"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
+
     clean_name = Path(file.name).stem
     new_file_info = f"{file_type}--{clean_name}--{timestamp}"
     file_path = session_dir / f"{new_file_info}.mp3"
-    
+
     # Save the MP3 file
     with open(file_path, "wb") as f:
         f.write(file.getbuffer())
-    
+
     # Process audio features
     service = AudioFeatureService()
     try:
@@ -38,19 +40,22 @@ def process_and_save_training_file(file, file_type, session_dir):
             max_duration=150
         )
         embedding = service.create_embedding_vector(global_features)
-        feature_data = service.build_feature_data_object(global_features, ["rhythm", "energy"])
-        
+        feature_data = service.build_feature_data_object(
+            global_features, ["rhythm", "energy"]
+        )
+
         return {
             "file_path": str(file_path),
             "original_filename": file.name,
             "duration": feature_data["metadata"]["duration"],
             "sample_rate": feature_data["metadata"]["sample_rate"],
             "embedding": embedding,
-            "success": True
+            "success": True,
         }
     except Exception as e:
         st.error(f"Error processing audio: {e} for: {file.name}")
         return {"success": False, "error": str(e)}
+
 
 st.set_page_config(page_title="RAG Database Admin", layout="wide")
 
@@ -150,20 +155,20 @@ if st.button("Generate Preview"):
     if input_file and ref_file:
         # Dynamically collect all feedback that has content
         feedback_data = {}
-        
+
         # Check each feedback field and add to preview if filled
         if general_comments.strip():
             feedback_data["general_comments"] = general_comments.strip()
-            
+
         if rhythmic_feedback.strip():
             feedback_data["rhythmic_feedback"] = rhythmic_feedback.strip()
-            
+
         if rhythmic_practical.strip():
             feedback_data["rhythmic_practical"] = rhythmic_practical.strip()
-            
+
         if eq_feedback.strip():
             feedback_data["eq_feedback"] = eq_feedback.strip()
-            
+
         if eq_practical.strip():
             feedback_data["eq_practical"] = eq_practical.strip()
 
@@ -176,7 +181,7 @@ if st.button("Generate Preview"):
             },
             "reference_track": {"filename": ref_file.name},
             "feedback": feedback_data,
-            "feedback_count": len(feedback_data)
+            "feedback_count": len(feedback_data),
         }
 
         st.json(preview_data)
@@ -197,47 +202,58 @@ with col1:
             uploads_dir.mkdir(exist_ok=True)
             session_dir = uploads_dir / session_id
             session_dir.mkdir(exist_ok=True)
-            
+
             st.info(f"Processing files in session: {session_id}")
-            
+
             # Process both files
-            input_data = process_and_save_training_file(input_file, "input", session_dir)
-            ref_data = process_and_save_training_file(ref_file, "reference", session_dir)
-            
+            input_data = process_and_save_training_file(
+                input_file, "input", session_dir
+            )
+            ref_data = process_and_save_training_file(
+                ref_file, "reference", session_dir
+            )
+
             if input_data["success"] and ref_data["success"]:
                 # Prepare feedback items for database
                 feedback_items = []
-                
+
                 if general_comments.strip():
-                    feedback_items.append({
-                        "feedback_type": "general",
-                        "feedback_text": general_comments.strip()
-                    })
-                
+                    feedback_items.append(
+                        {
+                            "feedback_type": "general",
+                            "feedback_text": general_comments.strip(),
+                        }
+                    )
+
                 if rhythmic_feedback.strip():
-                    feedback_items.append({
-                        "feedback_type": "rhythm",
-                        "feedback_text": rhythmic_feedback.strip()
-                    })
-                
+                    feedback_items.append(
+                        {
+                            "feedback_type": "rhythm",
+                            "feedback_text": rhythmic_feedback.strip(),
+                        }
+                    )
+
                 if rhythmic_practical.strip():
-                    feedback_items.append({
-                        "feedback_type": "rhythm_practical",
-                        "feedback_text": rhythmic_practical.strip()
-                    })
-                
+                    feedback_items.append(
+                        {
+                            "feedback_type": "rhythm_practical",
+                            "feedback_text": rhythmic_practical.strip(),
+                        }
+                    )
+
                 if eq_feedback.strip():
-                    feedback_items.append({
-                        "feedback_type": "eq",
-                        "feedback_text": eq_feedback.strip()
-                    })
-                
+                    feedback_items.append(
+                        {"feedback_type": "eq", "feedback_text": eq_feedback.strip()}
+                    )
+
                 if eq_practical.strip():
-                    feedback_items.append({
-                        "feedback_type": "eq_practical", 
-                        "feedback_text": eq_practical.strip()
-                    })
-                
+                    feedback_items.append(
+                        {
+                            "feedback_type": "eq_practical",
+                            "feedback_text": eq_practical.strip(),
+                        }
+                    )
+
                 # Save to database
                 try:
                     db_ops = get_database()
@@ -250,19 +266,19 @@ with col1:
                         ref_duration=ref_data["duration"],
                         ref_sample_rate=ref_data["sample_rate"],
                         ref_embedding=ref_data["embedding"],
-                        feedback_items=feedback_items
+                        feedback_items=feedback_items,
                     )
-                    
+
                     st.success(f"✅ Training example saved! ID: {training_id}")
                     st.success(f"📁 Files saved in: {session_dir}")
                     st.info(f"💬 Added {len(feedback_items)} feedback items")
-                    
+
                 except Exception as e:
                     st.error(f"❌ Database error: {e}")
-                    
+
             else:
                 st.error("Failed to process one or both audio files")
-                
+
         else:
             st.error(
                 "Please fill in required fields: both audio files and general comments"

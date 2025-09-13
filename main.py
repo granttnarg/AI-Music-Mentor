@@ -27,7 +27,6 @@ def create_fake_training_example(ops):
             "Your rhythm is a nice start but adding more complexity with more variations every 16 or 32 bars might be a good idea to keep interest as the song progresses",
             "Your high hats sound great, try to add some velocity to them so their is more dynamic change giving the track a more human feel",
         ],
-
         "energy": [
             "Energy level stays flat throughout, consider removing percussion in some areas to change the flow of energy it helps keeps the listener engaged",
             "The energy of your track overall sounds like it could use more compression and eqing to give it more weight and punch",

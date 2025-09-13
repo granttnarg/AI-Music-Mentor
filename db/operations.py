@@ -116,7 +116,7 @@ class AudioRAGOperations:
         ref_duration: float,
         ref_sample_rate: int,
         ref_embedding: List[float],
-        feedback_items: List[dict]
+        feedback_items: List[dict],
     ):
         """
         Add a training example with tracks and feedback to the database.
@@ -155,8 +155,7 @@ class AudioRAGOperations:
 
             # Create training example
             training_example = TrainingExample(
-                example_track_id=input_track.id,
-                reference_track_id=ref_track.id
+                example_track_id=input_track.id, reference_track_id=ref_track.id
             )
             session.add(training_example)
             session.flush()  # Get training example ID

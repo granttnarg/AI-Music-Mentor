@@ -9,8 +9,11 @@ import warnings
 class AudioRAGDatabase:
     def __init__(self, connection_string: str):
         # Suppress SQLAlchemy relationship overlap warnings
-        warnings.filterwarnings("ignore", message=".*relationship.*will copy column.*conflicts with relationship.*")
-        
+        warnings.filterwarnings(
+            "ignore",
+            message=".*relationship.*will copy column.*conflicts with relationship.*",
+        )
+
         self.engine = create_engine(connection_string)
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
