@@ -2,74 +2,73 @@ import streamlit as st
 from pathlib import Path
 from datetime import datetime
 from src.audio_features import AudioFeatureService
-import json
-from pprint import pprint
-import numpy as np
+from db.db import AudioRAGDatabase
+from db.operations import AudioRAGOperations
+from services.audio_rag import AudioRAG
+from dotenv import load_dotenv
+import os
+
+GENRES = [
+    "deep techno",
+    "hard techno",
+    "broken techno",
+    "tech-House",
+    "house",
+    "electro",
+    "vocal techno",
+    "ambient",
+    "other",
+]
+
+load_dotenv()
+
+# Initialize database connection
+@st.cache_resource
+def get_database():
+
+    """Initialize and return database connection"""
+    connection_url = os.getenv(
+        "DB_CONNECTION_URL", "postgresql://postgres:<ADD_TOENV_FILE>"
+    )
+    db = AudioRAGDatabase(connection_url)
+    # db.reset_database()
+    # db.setup_database()
+    return AudioRAGOperations(db)
 
 
-# We need to serialize our data to save it as json.
-def numpy_serializer(obj):
-    """Convert numpy types to Python types for JSON serialization"""
-    if isinstance(obj, np.integer):
-        return int(obj)
-    elif isinstance(obj, np.floating):
-        return float(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-
-def process_and_save_file(
-    file, file_type, session_dir, session_id, dropdown_option, text_input
-):
-    """Process and save a single file with its metadata"""
+def process_and_save_file(file, file_type, session_dir, session_id, dropdown_option, text_input):
+    """Process and save a single file - now returns processed audio data"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    clean_name = Path(file.name).stem  # Remove extension
+    clean_name = Path(file.name).stem
     new_file_info = f"{file_type}--{clean_name}--{timestamp}"
     file_path = session_dir / f"{new_file_info}.mp3"
 
+    # Save the MP3 file
     with open(file_path, "wb") as f:
         f.write(file.getbuffer())
-    upload_time = datetime.now().isoformat()
 
-    # Create metadata for JSON sidecar
+    # Process audio features
     service = AudioFeatureService()
-    global_features = "N/A"
     try:
         global_features = service.load_audio_file(file_path).extract_global_features(
             max_duration=150
-        )  # Set to a short time so we can TEST. REMOVE THIS LATER
+        )
+        embedding = service.create_embedding_vector(global_features)
+        feature_data = service.build_feature_data_object(global_features, ["rhythm", "energy"])
+        
+        return {
+            "file_path": str(file_path),
+            "original_filename": file.name,
+            "file_size_bytes": file.size,
+            "duration": feature_data["metadata"]["duration"],
+            "sample_rate": feature_data["metadata"]["sample_rate"],
+            "embedding": embedding,
+            "success": True
+        }
     except Exception as e:
-        st.error(f"Error processing audio type : {e} for: {file.name}")
-        return None, None
-
-    metadata = {
-        "original_filename": file.name,
-        "file_type": file_type,  # "input" or "reference"
-        "file_path": str(file_path),
-        "upload_datetime": upload_time,
-        "stage": dropdown_option,
-        "user_question": text_input,
-        "file_size_bytes": file.size,
-        "session_id": session_id,
-        "processed": {
-            "global_feature_embedding": service.create_embedding_vector(
-                global_features
-            ),
-            "global_feature_data": service.build_feature_data_object(
-                global_features, ["rhythm", "energy"]
-            ),
-            "processed_at": datetime.now().isoformat(),
-        },
-    }
-
-    # Save JSON sidecar file
-    json_path = session_dir / f"{new_file_info}.mp3.json"
-    with open(json_path, "w") as f:
-        json.dump(metadata, f, default=numpy_serializer, indent=2)
-
-    return file_path, json_path
+        st.error(f"Error processing audio: {e} for: {file.name}")
+        return {"success": False, "error": str(e)}
 
 
 # START OF UPLOAD
@@ -85,6 +84,7 @@ st.caption(
 )
 
 
+track_genre = st.selectbox("Unfinished Track Genre:", GENRES)
 input_file = st.file_uploader("Upload Unfinished track - MP3 file", type=["mp3"])
 ref_file = st.file_uploader(
     "Upload Reference track, something your aiming to get closer to - MP3 file",
@@ -106,54 +106,73 @@ if st.button("Submit"):
 
         st.success(f"Created session folder: {session_dir}")
 
-        # Process input file
-        input_file_path, input_json_path = process_and_save_file(
-            input_file, "input", session_dir, session_id, dropdown_option, text_input
-        )
+        # Process both files
+        input_data = process_and_save_file(input_file, "input", session_dir, session_id, dropdown_option, text_input)
+        ref_data = process_and_save_file(ref_file, "reference", session_dir, session_id, dropdown_option, text_input)
 
-        if input_file_path:
-            st.success(f"Input file uploaded: {input_file_path}")
-            st.success(f"Input metadata saved: {input_json_path}")
+        if input_data["success"] and ref_data["success"]:
+            # Save to database
+            try:
+                db_ops = get_database()
+                upload_id = db_ops.add_user_upload(
+                    input_track_path=input_data["file_path"],
+                    ref_track_path=ref_data["file_path"],
+                    input_duration=input_data["duration"],
+                    input_sample_rate=input_data["sample_rate"],
+                    input_embedding=input_data["embedding"],
+                    ref_duration=ref_data["duration"],
+                    ref_sample_rate=ref_data["sample_rate"],
+                    ref_embedding=ref_data["embedding"],
+                    user_prompt=text_input,
+                    stage=dropdown_option,
+                    genre=track_genre,
+                    session_id=session_id,
+                    input_file_size_bytes=input_data["file_size_bytes"],
+                    reference_file_size_bytes=ref_data["file_size_bytes"],
+                    input_original_filename=input_data["original_filename"],
+                    reference_original_filename=ref_data["original_filename"]
+                )
 
-        # Process reference file
-        ref_file_path, ref_json_path = process_and_save_file(
-            ref_file, "reference", session_dir, session_id, dropdown_option, text_input
-        )
+                st.success(f"✅ Successfully saved to database! Upload ID: {upload_id}")
+                st.success(f"📁 Files saved in: {session_dir}")
 
-        if ref_file_path:
-            st.success(f"Reference file uploaded: {ref_file_path}")
-            st.success(f"Reference metadata saved: {ref_json_path}")
+                # Show summary
+                st.subheader("Upload Summary")
+                summary = {
+                    "upload_id": upload_id,
+                    "session_id": session_id,
+                    "user_question": text_input,
+                    "stage": dropdown_option,
+                    "input_file": input_data["original_filename"],
+                    "reference_file": ref_data["original_filename"]
+                }
+                st.json(summary)
+                
+                # Generate AI feedback using RAG
+                st.subheader("🎵 AI Music Mentor Feedback")
+                with st.spinner("Analyzing your track and generating feedback..."):
+                    try:
+                        # Create RAG service using existing database connection
+                        rag_service = AudioRAG(db_ops.db)
+                        
+                        # Generate feedback using the upload ID
+                        feedback = rag_service.generate_feedback(
+                            user_upload_id=upload_id, 
+                            question=text_input,
+                            k=3  # Get top 3 similar examples
+                        )
+                        
+                        st.markdown(feedback)
+                        
+                    except Exception as e:
+                        st.error(f"❌ Could not generate feedback: {e}")
+                        st.info("💡 This might be because there are no training examples in the database yet.")
 
-        # Create a session summary JSON
-        session_metadata = {
-            "session_id": session_id,
-            "created_at": datetime.now().isoformat(),
-            "user_question": text_input,
-            "stage": dropdown_option,
-            "files": {
-                "input_track": {
-                    "original_name": input_file.name,
-                    "saved_path": str(input_file_path) if input_file_path else None,
-                    "metadata_path": str(input_json_path) if input_json_path else None,
-                },
-                "reference_track": {
-                    "original_name": ref_file.name,
-                    "saved_path": str(ref_file_path) if ref_file_path else None,
-                    "metadata_path": str(ref_json_path) if ref_json_path else None,
-                },
-            },
-        }
+            except Exception as e:
+                st.error(f"❌ Database error: {e}")
 
-        session_json_path = session_dir / "session_info.json"
-        with open(session_json_path, "w") as f:
-            json.dump(session_metadata, f, indent=2)
-
-        st.success("Form submitted successfully!")
-        st.code(f"Session folder: {session_dir}")
-
-        # Show the session metadata
-        st.subheader("Session Summary")
-        st.json(session_metadata)
+        else:
+            st.error("Failed to process one or both audio files")
 
     else:
         if not input_file:
