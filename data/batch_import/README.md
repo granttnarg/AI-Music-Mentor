@@ -3,6 +3,7 @@
 Place track pairs in individual folders under this directory.
 
 ## Folder Structure
+
 ```
 batch_import/
 ├── track_name_01/
@@ -14,6 +15,7 @@ batch_import/
 ```
 
 ## Naming Convention
+
 - **Folder names** can be simple like "training_example_01", "training_example_02", etc.
 - **File names** must use prefixes:
   - `input--` for unfinished tracks (e.g., `input--my_song_sketch.wav`)
@@ -23,7 +25,9 @@ batch_import/
 - Genre defaults to "deep techno" and can be edited later in the admin interface
 
 ## Usage
+
 Run the batch import script from project root:
+
 ```bash
 uv run python scripts/batch_import.py
 ```
