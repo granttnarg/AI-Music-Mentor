@@ -156,7 +156,7 @@ class AudioRAGOperations:
 
             # Create training example
             training_example = TrainingExample(
-                example_track_id=input_track.id, 
+                example_track_id=input_track.id,
                 reference_track_id=ref_track.id,
                 genre=genre
             )
@@ -341,63 +341,6 @@ class AudioRAGOperations:
         except Exception as e:
             print(f"✗ Error finding similar tracks ({metric}): {e}")
             raise
-        finally:
-            session.close()
-
-    # METHOD USED ONLY FOR QUICK FAKE DATA ENTRIES DURING PROTOTYPING
-    def add_training_example_for_mockdata(
-        self, example_track_path, reference_track_path, feedback_items
-    ):
-        """
-        Add a training example with feedback.
-
-        Args:
-            example_track_path (str): Path to the example track
-            reference_track_path (str): Path to the reference track
-            feedback_items (list): List of dicts with 'feedback_type' and 'feedback_text'
-                                e.g. [{'feedback_type': 'rhythm', 'feedback_text': 'Too slow'}]
-
-        Returns:
-            int: The training example ID
-        """
-        session = self.db.get_session()
-        try:
-            # Get or create example track
-            example_track = (
-                session.query(Track).filter_by(file_path=example_track_path).first()
-            )
-            if not example_track:
-                raise ValueError(f"Example track not found: {example_track_path}")
-
-            # Get or create reference track
-            reference_track = (
-                session.query(Track).filter_by(file_path=reference_track_path).first()
-            )
-            if not reference_track:
-                raise ValueError(f"Reference track not found: {reference_track_path}")
-
-            # Create training example
-            training_example = TrainingExample(
-                example_track_id=example_track.id, reference_track_id=reference_track.id
-            )
-            session.add(training_example)
-            session.flush()  # Get the ID
-
-            # Add feedback items
-            for feedback_item in feedback_items:
-                feedback = Feedback(
-                    training_example_id=training_example.id,
-                    feedback_type=feedback_item["feedback_type"],
-                    feedback_text=feedback_item["feedback_text"],
-                )
-                session.add(feedback)
-
-            session.commit()
-            return training_example.id
-
-        except Exception as e:
-            session.rollback()
-            raise e
         finally:
             session.close()
 
