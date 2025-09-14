@@ -161,7 +161,8 @@ class BatchImporter:
                 ref_duration=reference_data["duration"],
                 ref_sample_rate=reference_data["sample_rate"],
                 ref_embedding=reference_data["embedding"],
-                feedback_items=feedback_items
+                feedback_items=feedback_items,
+                genre=genre
             )
 
             logger.info(f"✅ Created TrainingExample ID: {training_id} for {folder_name}")
