@@ -117,6 +117,7 @@ class AudioRAGOperations:
         ref_sample_rate: int,
         ref_embedding: List[float],
         feedback_items: List[dict],
+        genre: str = "techno",
     ):
         """
         Add a training example with tracks and feedback to the database.
@@ -155,7 +156,9 @@ class AudioRAGOperations:
 
             # Create training example
             training_example = TrainingExample(
-                example_track_id=input_track.id, reference_track_id=ref_track.id
+                example_track_id=input_track.id, 
+                reference_track_id=ref_track.id,
+                genre=genre
             )
             session.add(training_example)
             session.flush()  # Get training example ID
@@ -179,12 +182,135 @@ class AudioRAGOperations:
         finally:
             session.close()
 
+    def get_all_training_examples(self):
+        """Get all training examples with track and feedback information."""
+        session = self.db.get_session()
+        try:
+            examples = session.query(TrainingExample).order_by(TrainingExample.created_at.desc()).all()
+
+            result = []
+            for example in examples:
+                # Get feedback items
+                feedback_items = session.query(Feedback).filter(
+                    Feedback.training_example_id == example.id
+                ).all()
+
+                result.append({
+                    "id": example.id,
+                    "genre": example.genre,
+                    "created_at": example.created_at,
+                    "input_track": {
+                        "id": example.example_track.id,
+                        "file_path": example.example_track.file_path,
+                        "duration": example.example_track.duration
+                    },
+                    "reference_track": {
+                        "id": example.reference_track.id, 
+                        "file_path": example.reference_track.file_path,
+                        "duration": example.reference_track.duration
+                    },
+                    "feedback_items": [
+                        {
+                            "id": fb.id,
+                            "type": fb.feedback_type,
+                            "text": fb.feedback_text,
+                            "created_at": fb.created_at
+                        } for fb in feedback_items
+                    ]
+                })
+
+            return result
+
+        except Exception as e:
+            print(f"Error getting training examples: {e}")
+            raise
+        finally:
+            session.close()
+
+    def get_training_example_by_id(self, training_id: int):
+        """Get a specific training example by ID."""
+        session = self.db.get_session()
+        try:
+            example = session.query(TrainingExample).filter(TrainingExample.id == training_id).first()
+            if not example:
+                return None
+
+            # Get feedback items
+            feedback_items = session.query(Feedback).filter(
+                Feedback.training_example_id == example.id
+            ).all()
+
+            return {
+                "id": example.id,
+                "genre": example.genre,
+                "created_at": example.created_at,
+                "input_track": {
+                    "id": example.example_track.id,
+                    "file_path": example.example_track.file_path,
+                    "duration": example.example_track.duration
+                },
+                "reference_track": {
+                    "id": example.reference_track.id,
+                    "file_path": example.reference_track.file_path,
+                    "duration": example.reference_track.duration
+                },
+                "feedback_items": [
+                    {
+                        "id": fb.id,
+                        "type": fb.feedback_type,
+                        "text": fb.feedback_text,
+                        "created_at": fb.created_at
+                    } for fb in feedback_items
+                ]
+            }
+
+        except Exception as e:
+            print(f"Error getting training example {training_id}: {e}")
+            raise
+        finally:
+            session.close()
+
+    def update_training_example_feedback(self, training_id: int, feedback_updates: list, genre: str | None = None):
+        """Update feedback items for a training example."""
+        session = self.db.get_session()
+        try:
+            # Get training example
+            example = session.query(TrainingExample).filter(TrainingExample.id == training_id).first()
+            if not example:
+                raise ValueError(f"Training example {training_id} not found")
+
+            # Update genre if provided
+            if genre:
+                setattr(example, 'genre', genre)
+
+            # First, delete all existing feedback (we'll re-add what we want to keep)
+            session.query(Feedback).filter(Feedback.training_example_id == training_id).delete()
+
+            # Add all feedback items (this includes both updates and new items)
+            for fb_update in feedback_updates:
+                new_feedback = Feedback(
+                    training_example_id=training_id,
+                    feedback_type=fb_update["type"],
+                    feedback_text=fb_update["text"]
+                )
+                session.add(new_feedback)
+
+            session.commit()
+            return training_id
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error updating training example {training_id}: {e}")
+            raise
+        finally:
+            session.close()
+
     def find_similar_tracks(
         self,
         embedding: List[float],
         metric: str = "cosine",
         limit: int = 5,
-        threshold: float = None,
+        threshold: float | None = None,
     ) -> List[Track]:
         """Find tracks using specified distance metric"""
         session = self.db.get_session()
