@@ -94,17 +94,20 @@ uv run pytest
 ### Docker Management
 
 Stop services:
+
 ```bash
 docker-compose down
 ```
 
 Rebuild after changes:
+
 ```bash
 docker-compose down -v  # Remove volumes to wipe data
 docker-compose up -d    # Rebuild with fresh data
 ```
 
 Access database directly:
+
 - **PostgreSQL**: `localhost:5434`
 - **PgAdmin**: `http://localhost:8080` (use credentials from .env)
 
@@ -126,8 +129,8 @@ Access database directly:
 ├── data/
 │   ├── raw/               # Raw training audio files
 │   ├── processed/         # Processed feature data
-│   └── test/             # Test audio files
-├── uploads/               # User uploaded files and session data
+│   └── test/              # Test audio file
+|   └── uploads/           # User uploaded files and session data
 ├── notebooks/             # Development and analysis notebooks
 └── tests/                # Unit tests
 ```

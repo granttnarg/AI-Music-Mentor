@@ -198,7 +198,7 @@ def show_add_new_tab():
                 # Create training session directory
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 session_id = f"training_{timestamp}"
-                uploads_dir = Path("uploads/training_entries")
+                uploads_dir = Path("data/uploads/training_entries")
                 uploads_dir.mkdir(exist_ok=True)
                 session_dir = uploads_dir / session_id
                 session_dir.mkdir(exist_ok=True)

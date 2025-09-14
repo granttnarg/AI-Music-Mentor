@@ -1,0 +1,18 @@
+{
+	"session_id": "session_20250911_175025",
+	"created_at": "2025-09-11T17:50:39.938171",
+	"user_question": "help me finish the arrangment",
+	"stage": "Sketch",
+	"files": {
+		"input_track": {
+			"original_name": "2025-07-21 Nik Fury Remix.mp3",
+			"saved_path": "uploads/session_20250911_175025/input--2025-07-21 Nik Fury Remix--20250911_175025.mp3",
+			"metadata_path": "uploads/session_20250911_175025/input--2025-07-21 Nik Fury Remix--20250911_175025.json"
+		},
+		"reference_track": {
+			"original_name": "M-High - The Saw That Broke The Camels Back (KiNK Dub Remix).mp3",
+			"saved_path": "uploads/session_20250911_175025/reference--M-High - The Saw That Broke The Camels Back (KiNK Dub Remix)--20250911_175029.mp3",
+			"metadata_path": "uploads/session_20250911_175025/reference--M-High - The Saw That Broke The Camels Back (KiNK Dub Remix)--20250911_175029.json"
+		}
+	}
+}
