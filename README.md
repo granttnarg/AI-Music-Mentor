@@ -1,13 +1,15 @@
 # AI Music Mentor - 🚧 Work in Progress - 3 Week MVP for Data Science Retreat
 
-Upload your unfinished techno tracks and get AI-powered arrangement feedback to help you finish them.
+An AI-powered music production feedback tool that analyzes your unfinished techno tracks and provides personalized arrangement advice using RAG (Retrieval-Augmented Generation) technology.
 
 ## Setup
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.13+
 - [uv](https://docs.astral.sh/uv/) package manager
+- PostgreSQL database
+- [Ollama](https://ollama.ai/) with llama3.2 model
 
 ### Installation
 
@@ -24,20 +26,56 @@ cd AI-Music-Mentor
 uv sync
 ```
 
-3. Run the Streamlit app:
+3. Set up environment variables:
+
+```bash
+cp .env.example .env
+# Edit .env with your secure database credentials and connection details
+```
+
+4. Start Docker services (PostgreSQL + PgAdmin):
+
+```bash
+# Start database and admin interface
+docker-compose up -d
+
+# Check containers are running
+docker-compose ps
+
+# View logs if needed
+docker-compose logs
+```
+
+5. Set up database:
+
+```bash
+uv run python -m admin  # Use admin interface to add DB examples for the RAG system to compare against.
+```
+
+6. Start Ollama and pull the model:
+
+```bash
+ollama serve
+ollama pull llama3.2:latest
+```
+
+7. Run the Streamlit app:
 
 ```bash
 uv run streamlit run app.py
 ```
 
-4. When running a specific module you must use the -m flag so uv can see it from the root directory and imports work
-   as expected.
+The dashboard will open in your browser at `http://localhost:8501`
+
+**Note**: Docker services must be running before starting the Streamlit app as it requires the PostgreSQL database connection.
+
+### Running Modules
+
+When running specific modules, use the -m flag so uv can resolve imports from the root directory:
 
 ```bash
 uv run python -m services.audio_rag
 ```
-
-The dashboard will open in your browser at `http://localhost:8501`
 
 ### Development
 
@@ -53,35 +91,62 @@ Run tests:
 uv run pytest
 ```
 
+### Docker Management
+
+Stop services:
+```bash
+docker-compose down
+```
+
+Rebuild after changes:
+```bash
+docker-compose down -v  # Remove volumes to wipe data
+docker-compose up -d    # Rebuild with fresh data
+```
+
+Access database directly:
+- **PostgreSQL**: `localhost:5434`
+- **PgAdmin**: `http://localhost:8080` (use credentials from .env)
+
 ### Project Structure
 
 ```
-├── app.py              # Streamlit dashboard
-├── main.py             # Test script for audio feature extraction
-├── admin.py            # Database admin utilities
-├── services/           # Core business logic
-│   └── audio_rag.py    # RAG system for feedback
+├── app.py                  # Main Streamlit User dashboard
+├── admin.py                # Streamlit Admin dasboard to popular data via UI
+├── main.py                 # Main App file
+├── pyproject.toml          # Project dependencies and configuration
+├── services/
+│   └── audio_rag.py        # RAG system with LLM integration
 ├── src/
-│   ├── audio_features.py   # Audio feature extraction service
-│   ├── rag.py             # RAG system for feedback
-│   └── pre-processing.py  # Data preprocessing
-├── db/                 # Database models and operations
+│   └── audio_features.py   # Audio feature extraction using Librosa
+├── db/
+│   ├── db.py              # Database connection and setup
+│   ├── models.py          # SQLAlchemy data models
+│   └── operations.py      # Database operations and queries
 ├── data/
-│   ├── raw/              # Training audio files
-│   ├── processed/        # Extracted features
-│   ├── feedback/         # Manual feedback data
-│   └── test/            # Test audio files
-├── uploads/             # User uploaded files and metadata
-├── notebooks/           # Jupyter notebooks for development
-├── models/              # Trained models
-└── tests/              # Unit tests
+│   ├── raw/               # Raw training audio files
+│   ├── processed/         # Processed feature data
+│   └── test/             # Test audio files
+├── uploads/               # User uploaded files and session data
+├── notebooks/             # Development and analysis notebooks
+└── tests/                # Unit tests
 ```
 
 ## How it works
 
-1. **Upload** your unfinished MP3 track
-2. **Select** feedback style from dropdown
-3. **Enter** specific questions or areas of focus
-4. **Get** personalized arrangement advice based on similar finished tracks
+1. **Upload** your unfinished MP3 track and a reference through the Streamlit interface
+2. **Select** your music genre (deep techno, hard techno, house, etc.)
+3. **Enter** specific questions or areas you want feedback on
+4. **Get** AI-powered arrangement advice using:
+   - Audio feature extraction with Librosa
+   - RAG system that retrieves similar tracks from database
+   - LLM-generated personalized feedback using Ollama/LangChain
 
-Built with RAG (Retrieval-Augmented Generation) to provide contextual feedback from experienced producers.
+## Features
+
+- **Audio Analysis**: Extracts musical features using Librosa (tempo, key, spectral features, etc.)
+- **RAG System**: Retrieval-augmented generation for contextual feedback
+- **Database Storage**: PostgreSQL/pgvector backend for tracks, features, and user feedback
+- **Admin Interface**: Tools for managing training data and user feedback
+- **LangChain/Smith Integration**: Observability and tracing for LLM interactions
+- **Genre Support**: Specialized for electronic music genres (techno, house, electro, etc.)

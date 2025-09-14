@@ -1,6 +1,61 @@
 import streamlit as st
 from pathlib import Path
 from datetime import datetime
+from src.audio_features import AudioFeatureService
+from db.db import AudioRAGDatabase
+from db.operations import AudioRAGOperations
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+
+# Initialize database connection
+@st.cache_resource
+def get_database():
+    """Initialize and return database connection"""
+    connection_url = os.getenv(
+        "DB_CONNECTION_URL", "postgresql://postgres:<ADD_TOENV_FILE>"
+    )
+    db = AudioRAGDatabase(connection_url)
+    return AudioRAGOperations(db)
+
+
+def process_and_save_training_file(file, file_type, session_dir):
+    """Process and save a training file - returns processed audio data"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    clean_name = Path(file.name).stem
+    new_file_info = f"{file_type}--{clean_name}--{timestamp}"
+    file_path = session_dir / f"{new_file_info}.mp3"
+
+    # Save the MP3 file
+    with open(file_path, "wb") as f:
+        f.write(file.getbuffer())
+
+    # Process audio features
+    service = AudioFeatureService()
+    try:
+        global_features = service.load_audio_file(file_path).extract_global_features(
+            max_duration=150
+        )
+        embedding = service.create_embedding_vector(global_features)
+        feature_data = service.build_feature_data_object(
+            global_features, ["rhythm", "energy"]
+        )
+
+        return {
+            "file_path": str(file_path),
+            "original_filename": file.name,
+            "duration": feature_data["metadata"]["duration"],
+            "sample_rate": feature_data["metadata"]["sample_rate"],
+            "embedding": embedding,
+            "success": True,
+        }
+    except Exception as e:
+        st.error(f"Error processing audio: {e} for: {file.name}")
+        return {"success": False, "error": str(e)}
+
 
 st.set_page_config(page_title="RAG Database Admin", layout="wide")
 
@@ -71,11 +126,11 @@ with feedback_col1:
         key="rhythm_feedback",
     )
 
-    rhythmic_practice = st.text_area(
-        "Rhythmic practice suggestions",
+    rhythmic_practical = st.text_area(
+        "Rhythmic practical suggestions",
         placeholder="Specific exercises or techniques to improve rhythmic elements...",
         height=100,
-        key="rhythm_practice",
+        key="rhythm_practical",
     )
 
 with feedback_col2:
@@ -87,17 +142,36 @@ with feedback_col2:
         key="eq_feedback",
     )
 
-    eq_practice = st.text_area(
-        "EQ practice suggestions",
+    eq_practical = st.text_area(
+        "EQ practical suggestions",
         placeholder="Specific EQ techniques, frequency targeting, mixing advice...",
         height=100,
-        key="eq_practice",
+        key="eq_practical",
     )
 
 # Preview section
 st.subheader("Entry Preview")
 if st.button("Generate Preview"):
     if input_file and ref_file:
+        # Dynamically collect all feedback that has content
+        feedback_data = {}
+
+        # Check each feedback field and add to preview if filled
+        if general_comments.strip():
+            feedback_data["general_comments"] = general_comments.strip()
+
+        if rhythmic_feedback.strip():
+            feedback_data["rhythmic_feedback"] = rhythmic_feedback.strip()
+
+        if rhythmic_practical.strip():
+            feedback_data["rhythmic_practical"] = rhythmic_practical.strip()
+
+        if eq_feedback.strip():
+            feedback_data["eq_feedback"] = eq_feedback.strip()
+
+        if eq_practical.strip():
+            feedback_data["eq_practical"] = eq_practical.strip()
+
         preview_data = {
             "timestamp": datetime.now().isoformat(),
             "input_track": {
@@ -106,14 +180,8 @@ if st.button("Generate Preview"):
                 "genre": track_genre,
             },
             "reference_track": {"filename": ref_file.name},
-            "feedback": {
-                "general_comments": general_comments,
-                "rhythmic": {
-                    "feedback": rhythmic_feedback,
-                    "practice_suggestions": rhythmic_practice,
-                },
-                "eq": {"feedback": eq_feedback, "practice_suggestions": eq_practice},
-            },
+            "feedback": feedback_data,
+            "feedback_count": len(feedback_data),
         }
 
         st.json(preview_data)
@@ -127,8 +195,90 @@ col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("Save Entry", type="primary"):
         if input_file and ref_file and general_comments:
-            st.success("Entry saved to RAG database!")
-            # TODO: Implement actual saving logic
+            # Create training session directory
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            session_id = f"training_{timestamp}"
+            uploads_dir = Path("uploads/training_entries")
+            uploads_dir.mkdir(exist_ok=True)
+            session_dir = uploads_dir / session_id
+            session_dir.mkdir(exist_ok=True)
+
+            st.info(f"Processing files in session: {session_id}")
+
+            # Process both files
+            input_data = process_and_save_training_file(
+                input_file, "input", session_dir
+            )
+            ref_data = process_and_save_training_file(
+                ref_file, "reference", session_dir
+            )
+
+            if input_data["success"] and ref_data["success"]:
+                # Prepare feedback items for database
+                feedback_items = []
+
+                if general_comments.strip():
+                    feedback_items.append(
+                        {
+                            "feedback_type": "general",
+                            "feedback_text": general_comments.strip(),
+                        }
+                    )
+
+                if rhythmic_feedback.strip():
+                    feedback_items.append(
+                        {
+                            "feedback_type": "rhythm",
+                            "feedback_text": rhythmic_feedback.strip(),
+                        }
+                    )
+
+                if rhythmic_practical.strip():
+                    feedback_items.append(
+                        {
+                            "feedback_type": "rhythm_practical",
+                            "feedback_text": rhythmic_practical.strip(),
+                        }
+                    )
+
+                if eq_feedback.strip():
+                    feedback_items.append(
+                        {"feedback_type": "eq", "feedback_text": eq_feedback.strip()}
+                    )
+
+                if eq_practical.strip():
+                    feedback_items.append(
+                        {
+                            "feedback_type": "eq_practical",
+                            "feedback_text": eq_practical.strip(),
+                        }
+                    )
+
+                # Save to database
+                try:
+                    db_ops = get_database()
+                    training_id = db_ops.add_training_example(
+                        input_track_path=input_data["file_path"],
+                        ref_track_path=ref_data["file_path"],
+                        input_duration=input_data["duration"],
+                        input_sample_rate=input_data["sample_rate"],
+                        input_embedding=input_data["embedding"],
+                        ref_duration=ref_data["duration"],
+                        ref_sample_rate=ref_data["sample_rate"],
+                        ref_embedding=ref_data["embedding"],
+                        feedback_items=feedback_items,
+                    )
+
+                    st.success(f"✅ Training example saved! ID: {training_id}")
+                    st.success(f"📁 Files saved in: {session_dir}")
+                    st.info(f"💬 Added {len(feedback_items)} feedback items")
+
+                except Exception as e:
+                    st.error(f"❌ Database error: {e}")
+
+            else:
+                st.error("Failed to process one or both audio files")
+
         else:
             st.error(
                 "Please fill in required fields: both audio files and general comments"

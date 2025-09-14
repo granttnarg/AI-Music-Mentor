@@ -20,43 +20,21 @@ def create_fake_training_example(ops):
     reference_track = random.choice([t for t in tracks if t.id != example_track.id])
 
     # Create some realistic feedback
-    feedback_types = ["rhythm", "eq", "global", "arrangement", "energy"]
+    feedback_types = ["rhythm", "energy"]
 
     feedback_examples = {
         "rhythm": [
-            "The kick pattern needs more variation and groove",
-            "Hi-hats are too repetitive, add some swing",
-            "The snare feels weak, needs more punch",
-            "Percussion elements are cluttering the mix",
-        ],
-        "eq": [
-            "Too much low-end muddying the mix",
-            "High frequencies are harsh and fatiguing",
-            "Needs more presence in the mid-range",
-            "Bass and kick are fighting in the low-end",
-        ],
-        "global": [
-            "Overall mix feels unbalanced",
-            "Track lacks cohesion between sections",
-            "Dynamics are too compressed",
-            "Stereo image could be wider",
-        ],
-        "arrangement": [
-            "Intro is too long and repetitive",
-            "Breakdown section needs more tension",
-            "Track needs a proper climax moment",
-            "Transitions between sections are abrupt",
+            "Your rhythm is a nice start but adding more complexity with more variations every 16 or 32 bars might be a good idea to keep interest as the song progresses",
+            "Your high hats sound great, try to add some velocity to them so their is more dynamic change giving the track a more human feel",
         ],
         "energy": [
-            "Energy level stays flat throughout",
-            "Needs more build-up to the drop",
-            "Second half loses momentum",
-            "Opening lacks impact and excitement",
+            "Energy level stays flat throughout, consider removing percussion in some areas to change the flow of energy it helps keeps the listener engaged",
+            "The energy of your track overall sounds like it could use more compression and eqing to give it more weight and punch",
         ],
     }
 
-    # Generate 2-4 random feedback items
-    num_feedback = random.randint(2, 4)
+    # Generate 1-2 random feedback items (limited by available feedback types)
+    num_feedback = random.randint(1, min(len(feedback_types), 2))
     selected_types = random.sample(feedback_types, num_feedback)
 
     feedback_items = []
@@ -95,11 +73,12 @@ if __name__ == "__main__":
     # Connect to database
     db = AudioRAGDatabase("postgresql://postgres:password@127.0.0.1:5434/audio_rag")
     ops = AudioRAGOperations(db)
+    # db.reset_database()
 
     print("🎵 Creating fake training examples...")
 
     # Create 3 fake training examples
-    for i in range(3):
+    for i in range(2):
         print(f"\n--- Training Example {i+1} ---")
         create_fake_training_example(ops)
 

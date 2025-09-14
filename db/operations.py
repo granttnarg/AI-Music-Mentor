@@ -48,9 +48,17 @@ class AudioRAGOperations:
         input_duration: float,
         input_sample_rate,
         input_embedding,
+        ref_duration: float,
+        ref_sample_rate,
+        ref_embedding,
         user_prompt,
         stage,
         genre,
+        session_id,
+        input_file_size_bytes,
+        reference_file_size_bytes,
+        input_original_filename,
+        reference_original_filename,
     ):
         session = self.db.get_session()
 
@@ -65,9 +73,9 @@ class AudioRAGOperations:
             ref_track = self._add_track(
                 session,
                 ref_track_path,
-                input_duration,
-                input_sample_rate,
-                input_embedding,
+                ref_duration,
+                ref_sample_rate,
+                ref_embedding,
             )
             session.flush()  # This should be enough to get the ID
 
@@ -79,6 +87,11 @@ class AudioRAGOperations:
                 user_prompt=user_prompt,
                 stage=stage,
                 genre=genre,
+                session_id=session_id,
+                input_file_size_bytes=input_file_size_bytes,
+                reference_file_size_bytes=reference_file_size_bytes,
+                input_original_filename=input_original_filename,
+                reference_original_filename=reference_original_filename,
             )
             session.add(upload)
             session.commit()
@@ -93,10 +106,119 @@ class AudioRAGOperations:
         finally:
             session.close()
 
-    # Currently we make a training example using tracks in our DB, this is not how it should work for the final app.
-    # We will want to create tracks from the uploads at the same time as the training example and feedback
-    # However this helps us get some examples in our DB to test out the RAG flow we will come back to this.
-    # TODO: ADJUST TO CREATE TRACKS ON THE FLY
+    def add_training_example(
+        self,
+        input_track_path: str,
+        ref_track_path: str,
+        input_duration: float,
+        input_sample_rate: int,
+        input_embedding: List[float],
+        ref_duration: float,
+        ref_sample_rate: int,
+        ref_embedding: List[float],
+        feedback_items: List[dict],
+    ):
+        """
+        Add a training example with tracks and feedback to the database.
+
+        Args:
+            input_track_path: Path to saved input track file
+            ref_track_path: Path to saved reference track file
+            input_duration, input_sample_rate, input_embedding: Input track features
+            ref_duration, ref_sample_rate, ref_embedding: Reference track features
+            feedback_items: List of dicts with 'feedback_type' and 'feedback_text'
+
+        Returns:
+            int: The training example ID
+        """
+        session = self.db.get_session()
+
+        try:
+            # Create track records
+            input_track = self._add_track(
+                session,
+                input_track_path,
+                input_duration,
+                input_sample_rate,
+                input_embedding,
+            )
+
+            ref_track = self._add_track(
+                session,
+                ref_track_path,
+                ref_duration,
+                ref_sample_rate,
+                ref_embedding,
+            )
+
+            session.flush()  # Get track IDs
+
+            # Create training example
+            training_example = TrainingExample(
+                example_track_id=input_track.id, reference_track_id=ref_track.id
+            )
+            session.add(training_example)
+            session.flush()  # Get training example ID
+
+            # Add feedback items
+            for feedback_item in feedback_items:
+                feedback = Feedback(
+                    training_example_id=training_example.id,
+                    feedback_type=feedback_item["feedback_type"],
+                    feedback_text=feedback_item["feedback_text"],
+                )
+                session.add(feedback)
+
+            session.commit()
+            return training_example.id
+
+        except Exception as e:
+            session.rollback()
+            print(f"Error adding training example: {e}")
+            raise
+        finally:
+            session.close()
+
+    def find_similar_tracks(
+        self,
+        embedding: List[float],
+        metric: str = "cosine",
+        limit: int = 5,
+        threshold: float = None,
+    ) -> List[Track]:
+        """Find tracks using specified distance metric"""
+        session = self.db.get_session()
+
+        try:
+            if metric == "cosine":
+                distance = Track.global_embedding.cosine_distance(embedding)
+                query = session.query(Track).order_by(distance)
+                if threshold is not None:
+                    query = query.filter(distance <= threshold)
+
+            elif metric == "euclidean":
+                distance = Track.global_embedding.l2_distance(embedding)
+                query = session.query(Track).order_by(distance)
+                if threshold is not None:
+                    query = query.filter(distance <= threshold)
+
+            elif metric == "inner_product":
+                score = Track.global_embedding.max_inner_product(embedding)
+                query = session.query(Track).order_by(score.desc())
+                if threshold is not None:
+                    query = query.filter(score >= threshold)
+            else:
+                raise ValueError(f"Unknown metric: {metric}")
+
+            return query.limit(limit).all()
+
+        except Exception as e:
+            print(f"✗ Error finding similar tracks ({metric}): {e}")
+            raise
+        finally:
+            session.close()
+
+    # METHOD USED ONLY FOR QUICK FAKE DATA ENTRIES DURING PROTOTYPING
     def add_training_example_for_mockdata(
         self, example_track_path, reference_track_path, feedback_items
     ):
@@ -150,45 +272,6 @@ class AudioRAGOperations:
         except Exception as e:
             session.rollback()
             raise e
-        finally:
-            session.close()
-
-    def find_similar_tracks(
-        self,
-        embedding: List[float],
-        metric: str = "cosine",
-        limit: int = 5,
-        threshold: float = None,
-    ) -> List[Track]:
-        """Find tracks using specified distance metric"""
-        session = self.db.get_session()
-
-        try:
-            if metric == "cosine":
-                distance = Track.global_embedding.cosine_distance(embedding)
-                query = session.query(Track).order_by(distance)
-                if threshold is not None:
-                    query = query.filter(distance <= threshold)
-
-            elif metric == "euclidean":
-                distance = Track.global_embedding.l2_distance(embedding)
-                query = session.query(Track).order_by(distance)
-                if threshold is not None:
-                    query = query.filter(distance <= threshold)
-
-            elif metric == "inner_product":
-                score = Track.global_embedding.max_inner_product(embedding)
-                query = session.query(Track).order_by(score.desc())
-                if threshold is not None:
-                    query = query.filter(score >= threshold)
-            else:
-                raise ValueError(f"Unknown metric: {metric}")
-
-            return query.limit(limit).all()
-
-        except Exception as e:
-            print(f"✗ Error finding similar tracks ({metric}): {e}")
-            raise
         finally:
             session.close()
 
