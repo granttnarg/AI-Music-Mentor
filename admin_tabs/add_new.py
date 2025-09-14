@@ -9,6 +9,7 @@ import os
 
 load_dotenv()
 
+
 def process_and_save_training_file(file, file_type, session_dir):
     """Process and save a training file - returns processed audio data"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -44,6 +45,7 @@ def process_and_save_training_file(file, file_type, session_dir):
         st.error(f"Error processing audio: {e} for: {file.name}")
         return {"success": False, "error": str(e)}
 
+
 @st.cache_resource
 def get_database():
     """Initialize and return database connection"""
@@ -53,10 +55,13 @@ def get_database():
     db = AudioRAGDatabase(connection_url)
     return AudioRAGOperations(db)
 
+
 def show_add_new_tab():
     """Show the Add New Training Example tab content"""
     st.markdown("#### Add feedback entries to the RAG database")
-    st.caption("Upload track pairs and provide expert feedback for training the AI system")
+    st.caption(
+        "Upload track pairs and provide expert feedback for training the AI system"
+    )
 
     GENRES = [
         "techno",
@@ -68,7 +73,7 @@ def show_add_new_tab():
         "electro",
         "vocal techno",
         "ambient",
-        "other"
+        "other",
     ]
 
     # Create two columns for the audio uploads
@@ -238,7 +243,10 @@ def show_add_new_tab():
 
                     if eq_feedback.strip():
                         feedback_items.append(
-                            {"feedback_type": "eq", "feedback_text": eq_feedback.strip()}
+                            {
+                                "feedback_type": "eq",
+                                "feedback_text": eq_feedback.strip(),
+                            }
                         )
 
                     if eq_practical.strip():

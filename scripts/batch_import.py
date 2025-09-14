@@ -23,6 +23,7 @@ from db.operations import AudioRAGOperations
 init_app()
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,9 +45,9 @@ class BatchImporter:
             logger.info(f"Processing audio file: {file_path}")
 
             # Load and extract features
-            global_features = self.audio_service.load_audio_file(file_path).extract_global_features(
-                max_duration=150
-            )
+            global_features = self.audio_service.load_audio_file(
+                file_path
+            ).extract_global_features(max_duration=150)
 
             # Create embedding
             embedding = self.audio_service.create_embedding_vector(global_features)
@@ -61,7 +62,7 @@ class BatchImporter:
                 "duration": feature_data["metadata"]["duration"],
                 "sample_rate": feature_data["metadata"]["sample_rate"],
                 "embedding": embedding,
-                "success": True
+                "success": True,
             }
 
         except Exception as e:
@@ -73,12 +74,14 @@ class BatchImporter:
         feedback_items = [
             {
                 "feedback_type": "general",
-                "feedback_text": f"[EDIT ME] Add your feedback for {folder_name} - what improvements does this track need to reach the reference quality?"
+                "feedback_text": f"[EDIT ME] Add your feedback for {folder_name} - what improvements does this track need to reach the reference quality?",
             }
         ]
         return feedback_items
 
-    def find_files_by_prefix(self, folder: Path) -> tuple[Optional[Path], Optional[Path]]:
+    def find_files_by_prefix(
+        self, folder: Path
+    ) -> tuple[Optional[Path], Optional[Path]]:
         """Find input and reference files by prefix in a folder."""
         input_file = None
         reference_file = None
@@ -162,10 +165,12 @@ class BatchImporter:
                 ref_sample_rate=reference_data["sample_rate"],
                 ref_embedding=reference_data["embedding"],
                 feedback_items=feedback_items,
-                genre=genre
+                genre=genre,
             )
 
-            logger.info(f"✅ Created TrainingExample ID: {training_id} for {folder_name}")
+            logger.info(
+                f"✅ Created TrainingExample ID: {training_id} for {folder_name}"
+            )
             return training_id
 
         except Exception as e:
@@ -192,7 +197,9 @@ class BatchImporter:
         for folder in track_pairs:
             training_id = self.import_track_pair(folder)
             if training_id:
-                successful_imports.append({"folder": folder.name, "training_id": training_id})
+                successful_imports.append(
+                    {"folder": folder.name, "training_id": training_id}
+                )
             else:
                 failed_imports.append(folder.name)
 
@@ -203,10 +210,12 @@ class BatchImporter:
             "successful_imports": len(successful_imports),
             "failed_imports": len(failed_imports),
             "imported_examples": successful_imports,
-            "failed_folders": failed_imports
+            "failed_folders": failed_imports,
         }
 
-        logger.info(f"Batch import complete: {len(successful_imports)}/{len(track_pairs)} successful")
+        logger.info(
+            f"Batch import complete: {len(successful_imports)}/{len(track_pairs)} successful"
+        )
         return summary
 
 
@@ -215,7 +224,7 @@ def main():
     # Get database connection URL
     connection_url = os.getenv(
         "DB_CONNECTION_URL",
-        "postgresql://postgres:your_password@localhost:5434/audio_rag"
+        "postgresql://postgres:your_password@localhost:5434/audio_rag",
     )
 
     if "your_password" in connection_url:
@@ -230,9 +239,11 @@ def main():
         if results["success"]:
             print(f"\n🎵 Batch Import Complete!")
             print(f"✅ Successfully imported: {results['successful_imports']}")
-            if results['failed_imports']:
+            if results["failed_imports"]:
                 print(f"❌ Failed imports: {results['failed_imports']}")
-            print(f"\n💡 Next step: Use the admin interface to edit placeholder feedback")
+            print(
+                f"\n💡 Next step: Use the admin interface to edit placeholder feedback"
+            )
             return 0
         else:
             print(f"❌ Batch import failed: {results.get('message', 'Unknown error')}")

@@ -158,7 +158,7 @@ class AudioRAGOperations:
             training_example = TrainingExample(
                 example_track_id=input_track.id,
                 reference_track_id=ref_track.id,
-                genre=genre
+                genre=genre,
             )
             session.add(training_example)
             session.flush()  # Get training example ID
@@ -186,38 +186,47 @@ class AudioRAGOperations:
         """Get all training examples with track and feedback information."""
         session = self.db.get_session()
         try:
-            examples = session.query(TrainingExample).order_by(TrainingExample.created_at.desc()).all()
+            examples = (
+                session.query(TrainingExample)
+                .order_by(TrainingExample.created_at.desc())
+                .all()
+            )
 
             result = []
             for example in examples:
                 # Get feedback items
-                feedback_items = session.query(Feedback).filter(
-                    Feedback.training_example_id == example.id
-                ).all()
+                feedback_items = (
+                    session.query(Feedback)
+                    .filter(Feedback.training_example_id == example.id)
+                    .all()
+                )
 
-                result.append({
-                    "id": example.id,
-                    "genre": example.genre,
-                    "created_at": example.created_at,
-                    "input_track": {
-                        "id": example.example_track.id,
-                        "file_path": example.example_track.file_path,
-                        "duration": example.example_track.duration
-                    },
-                    "reference_track": {
-                        "id": example.reference_track.id, 
-                        "file_path": example.reference_track.file_path,
-                        "duration": example.reference_track.duration
-                    },
-                    "feedback_items": [
-                        {
-                            "id": fb.id,
-                            "type": fb.feedback_type,
-                            "text": fb.feedback_text,
-                            "created_at": fb.created_at
-                        } for fb in feedback_items
-                    ]
-                })
+                result.append(
+                    {
+                        "id": example.id,
+                        "genre": example.genre,
+                        "created_at": example.created_at,
+                        "input_track": {
+                            "id": example.example_track.id,
+                            "file_path": example.example_track.file_path,
+                            "duration": example.example_track.duration,
+                        },
+                        "reference_track": {
+                            "id": example.reference_track.id,
+                            "file_path": example.reference_track.file_path,
+                            "duration": example.reference_track.duration,
+                        },
+                        "feedback_items": [
+                            {
+                                "id": fb.id,
+                                "type": fb.feedback_type,
+                                "text": fb.feedback_text,
+                                "created_at": fb.created_at,
+                            }
+                            for fb in feedback_items
+                        ],
+                    }
+                )
 
             return result
 
@@ -231,14 +240,20 @@ class AudioRAGOperations:
         """Get a specific training example by ID."""
         session = self.db.get_session()
         try:
-            example = session.query(TrainingExample).filter(TrainingExample.id == training_id).first()
+            example = (
+                session.query(TrainingExample)
+                .filter(TrainingExample.id == training_id)
+                .first()
+            )
             if not example:
                 return None
 
             # Get feedback items
-            feedback_items = session.query(Feedback).filter(
-                Feedback.training_example_id == example.id
-            ).all()
+            feedback_items = (
+                session.query(Feedback)
+                .filter(Feedback.training_example_id == example.id)
+                .all()
+            )
 
             return {
                 "id": example.id,
@@ -247,21 +262,22 @@ class AudioRAGOperations:
                 "input_track": {
                     "id": example.example_track.id,
                     "file_path": example.example_track.file_path,
-                    "duration": example.example_track.duration
+                    "duration": example.example_track.duration,
                 },
                 "reference_track": {
                     "id": example.reference_track.id,
                     "file_path": example.reference_track.file_path,
-                    "duration": example.reference_track.duration
+                    "duration": example.reference_track.duration,
                 },
                 "feedback_items": [
                     {
                         "id": fb.id,
                         "type": fb.feedback_type,
                         "text": fb.feedback_text,
-                        "created_at": fb.created_at
-                    } for fb in feedback_items
-                ]
+                        "created_at": fb.created_at,
+                    }
+                    for fb in feedback_items
+                ],
             }
 
         except Exception as e:
@@ -270,28 +286,36 @@ class AudioRAGOperations:
         finally:
             session.close()
 
-    def update_training_example_feedback(self, training_id: int, feedback_updates: list, genre: str | None = None):
+    def update_training_example_feedback(
+        self, training_id: int, feedback_updates: list, genre: str | None = None
+    ):
         """Update feedback items for a training example."""
         session = self.db.get_session()
         try:
             # Get training example
-            example = session.query(TrainingExample).filter(TrainingExample.id == training_id).first()
+            example = (
+                session.query(TrainingExample)
+                .filter(TrainingExample.id == training_id)
+                .first()
+            )
             if not example:
                 raise ValueError(f"Training example {training_id} not found")
 
             # Update genre if provided
             if genre:
-                setattr(example, 'genre', genre)
+                setattr(example, "genre", genre)
 
             # First, delete all existing feedback (we'll re-add what we want to keep)
-            session.query(Feedback).filter(Feedback.training_example_id == training_id).delete()
+            session.query(Feedback).filter(
+                Feedback.training_example_id == training_id
+            ).delete()
 
             # Add all feedback items (this includes both updates and new items)
             for fb_update in feedback_updates:
                 new_feedback = Feedback(
                     training_example_id=training_id,
                     feedback_type=fb_update["type"],
-                    feedback_text=fb_update["text"]
+                    feedback_text=fb_update["text"],
                 )
                 session.add(new_feedback)
 
