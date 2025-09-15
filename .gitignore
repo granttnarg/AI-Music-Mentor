@@ -11,7 +11,7 @@ __pycache__/
 *.m4a
 *.aac
 
-#for basic json sidecar
+#for our audio uploads
 *.mp3.json
 data/uploads/session_*/*.json
 
