@@ -10,9 +10,9 @@ __pycache__/
 *.flac
 *.m4a
 *.aac
+*.aif
 
 #for our audio uploads
-*.mp3.json
 data/uploads/session_*/*.json
 
 # Models (if large)

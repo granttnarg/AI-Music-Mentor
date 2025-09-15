@@ -87,7 +87,7 @@ class BatchImporter:
         reference_file = None
 
         # Support multiple audio formats
-        audio_extensions = ["*.mp3", "*.wav"]
+        audio_extensions = ["*.mp3", "*.wav", "*.aif"]
 
         for pattern in audio_extensions:
             for file in folder.glob(pattern):
