@@ -1,21 +1,6 @@
 import streamlit as st
 from pathlib import Path
-import os
-from dotenv import load_dotenv
-from db.db import AudioRAGDatabase
-from db.operations import AudioRAGOperations
-
-load_dotenv()
-
-
-@st.cache_resource
-def get_database():
-    """Initialize and return database connection"""
-    connection_url = os.getenv(
-        "DB_CONNECTION_URL", "postgresql://postgres:<ADD_TOENV_FILE>"
-    )
-    db = AudioRAGDatabase(connection_url)
-    return AudioRAGOperations(db)
+from admin_tabs.add_new import get_database
 
 
 def show_browse_edit_tab():
