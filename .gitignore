@@ -10,10 +10,10 @@ __pycache__/
 *.flac
 *.m4a
 *.aac
+*.aif
 
-#for basic json sidecar
-*.mp3.json
-uploads/session_*/*.json
+#for our audio uploads
+data/uploads/session_*/*.json
 
 # Models (if large)
 models/*.pkl

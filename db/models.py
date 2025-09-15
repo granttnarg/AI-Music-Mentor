@@ -37,6 +37,7 @@ class TrainingExample(Base):
     id = Column(Integer, primary_key=True)
     example_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
     reference_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
+    genre = Column(String, nullable=False, default="techno")
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
