@@ -153,3 +153,12 @@ Access database directly:
 - **Admin Interface**: Tools for managing training data and user feedback
 - **LangChain/Smith Integration**: Observability and tracing for LLM interactions
 - **Genre Support**: Specialized for electronic music genres (techno, house, electro, etc.)
+
+## License
+
+Copyright (c) 2025 Grant Thomas
+All rights reserved.
+
+This code is provided for reference and learning purposes only.
+It may not be copied, modified, or used in any project,
+commercial or otherwise, without explicit permission.
