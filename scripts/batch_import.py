@@ -120,9 +120,9 @@ class BatchImporter:
             else:
                 missing = []
                 if not input_file:
-                    missing.append("input--*.mp3")
+                    missing.append("input--*.(mp3|wav|aif)")
                 if not reference_file:
-                    missing.append("ref--*.mp3")
+                    missing.append("ref--*.(mp3|wav|aif)")
                 logger.warning(f"Skipping {folder.name}: missing {', '.join(missing)}")
 
         return valid_folders
