@@ -4,7 +4,7 @@ Post-processing utilities for arrangement classification to create cleaner segme
 """
 
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 # min seg 2 and min confidence 0.4 gave the best naunced by smoother output so far.
 def smooth_predictions(predictions: np.ndarray,
@@ -260,3 +260,45 @@ def suggest_arrangement_pattern(blocks: List[Dict], min_duration_threshold: floa
         'simplified_blocks': len(simplified_sections),
         'min_duration_threshold': min_duration_threshold
     }
+
+def process_arrangement_predictions(predictions: np.ndarray,
+                                  confidence_scores: np.ndarray, 
+                                  class_names: List[str],
+                                  min_segment_length: int = 2,
+                                  confidence_threshold: float = 0.4) -> Tuple[List[Dict], Dict]:
+    """
+    Complete post-processing pipeline for arrangement predictions.
+    
+    Args:
+        predictions: Raw prediction array
+        confidence_scores: Confidence scores for each prediction
+        class_names: List of class names
+        min_segment_length: Minimum segments for a section
+        confidence_threshold: Confidence threshold for filtering
+        
+    Returns:
+        Tuple of (arrangement_blocks, analysis)
+    """
+    print(f"🔄 Post-processing predictions...")
+    print(f"   Raw segments: {len(predictions)}")
+    
+    # Step 1: Smooth predictions
+    smoothed_predictions = smooth_predictions(
+        predictions, confidence_scores, min_segment_length, confidence_threshold
+    )
+    
+    # Count changes
+    changes_before = np.sum(predictions[1:] != predictions[:-1])
+    changes_after = np.sum(smoothed_predictions[1:] != smoothed_predictions[:-1])
+    
+    print(f"   Transitions before smoothing: {changes_before}")
+    print(f"   Transitions after smoothing: {changes_after}")
+    print(f"   Reduction: {changes_before - changes_after} transitions")
+    
+    # Step 2: Create arrangement blocks
+    blocks = create_arrangement_blocks(smoothed_predictions, class_names)
+    
+    # Step 3: Analyze structure
+    analysis = suggest_arrangement_pattern(blocks)
+    
+    return blocks, analysis
