@@ -12,6 +12,7 @@ import librosa.display
 from matplotlib import pyplot as plt
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+from datetime import datetime
 
 
 class SongVisualizerService:
@@ -19,7 +20,7 @@ class SongVisualizerService:
     Service for visualizing arrangement classification results on audio waveforms.
     """
 
-    def __init__(self):
+    def __init__(self, cache_dir: str = "visualizations"):
         """Initialize the visualizer service."""
         # Color scheme for arrangement sections
         self.class_colors = {
@@ -36,6 +37,57 @@ class SongVisualizerService:
             "B": 3,  # High Energy (top)
             "C": 0,  # Breakdown (bottom)
         }
+
+        # Setup cache directory
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(exist_ok=True)
+
+    def _get_cache_path(self, track_id: int, viz_type: str) -> Path:
+        """Generate cache file path for a track visualization."""
+        return self.cache_dir / f"track_{track_id}_{viz_type}.png"
+
+    def _is_cache_valid(self, cache_path: Path, audio_path: str) -> bool:
+        """Check if cached visualization is still valid (newer than audio file)."""
+        if not cache_path.exists():
+            return False
+
+        audio_mtime = os.path.getmtime(audio_path)
+        cache_mtime = os.path.getmtime(cache_path)
+        return cache_mtime > audio_mtime
+
+    def plot_arrangement_waveform_cached(
+        self,
+        track_id: int,
+        audio_path: str,
+        arrangement_blocks: List[Dict],
+        title: Optional[str] = None,
+        force_regenerate: bool = False
+    ) -> str:
+        """
+        Generate or retrieve cached waveform visualization.
+
+        Returns:
+            Path to the cached PNG file
+        """
+        cache_path = self._get_cache_path(track_id, "waveform")
+
+        # Check if we can use cached version
+        if not force_regenerate and self._is_cache_valid(cache_path, audio_path):
+            return str(cache_path)
+
+        # Generate new visualization
+        fig = self.plot_arrangement_waveform(
+            audio_path=audio_path,
+            arrangement_blocks=arrangement_blocks,
+            title=title,
+            figsize=(15, 6)
+        )
+
+        # Save to cache
+        fig.savefig(cache_path, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+
+        return str(cache_path)
 
     def plot_raw_predictions_waveform(
         self,
