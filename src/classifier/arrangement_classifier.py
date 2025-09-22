@@ -270,10 +270,67 @@ class ArrangementClassifier:
             print(f"❌ Error processing audio with CRNN: {e}")
             return None, None, None
 
-    def analyze_arrangement_structure(self, audio_path: str, min_segment_length: int = 3,
-                                    confidence_threshold: float = 0.6) -> Tuple[str | None, str| None]:
+    def get_smoothed_blocks(self, raw_predictions: List[int], confidence_scores: List[float], 
+                           min_segment_length: int = 2, confidence_threshold: float = 0.4) -> Tuple[List[Dict], Dict]:
         """
-        Analyze audio and return arrangement pattern and JSON blocks for database storage.
+        Helper method to generate smoothed blocks from raw predictions.
+        
+        Args:
+            raw_predictions: List of raw prediction class indices
+            confidence_scores: List of confidence scores
+            min_segment_length: Minimum segments for a section
+            confidence_threshold: Confidence threshold for filtering
+            
+        Returns:
+            Tuple of (blocks, analysis)
+        """
+        from classifier.arrangement_postprocessing import process_arrangement_predictions
+        import numpy as np
+        
+        predictions_array = np.array(raw_predictions)
+        confidence_array = np.array(confidence_scores)
+        
+        return process_arrangement_predictions(
+            predictions_array, confidence_array, self.class_names,
+            min_segment_length=min_segment_length,
+            confidence_threshold=confidence_threshold
+        )
+
+    def _compress_pattern_with_counts(self, predictions: List[int]) -> str:
+        """
+        Compress raw predictions into a pattern with segment counts.
+        
+        Args:
+            predictions: List of class indices
+            
+        Returns:
+            Compressed pattern string like "1A-7O-4A-16B-1A-1C-2A"
+        """
+        if not predictions:
+            return ""
+        
+        compressed = []
+        i = 0
+        
+        while i < len(predictions):
+            current_class = predictions[i]
+            segment_start = i
+            
+            # Count consecutive segments of same class
+            while i < len(predictions) and predictions[i] == current_class:
+                i += 1
+            
+            segment_length = i - segment_start
+            class_name = self.class_names[current_class]
+            
+            compressed.append(f"{segment_length}{class_name}")
+        
+        return '-'.join(compressed)
+
+    def analyze_arrangement_structure(self, audio_path: str, min_segment_length: int = 2,
+                                    confidence_threshold: float = 0.4) -> Dict | None:
+        """
+        Analyze audio and return both raw and smoothed arrangement data for database storage.
 
         Args:
             audio_path: Path to the audio file
@@ -281,35 +338,44 @@ class ArrangementClassifier:
             confidence_threshold: Confidence threshold for filtering (for postprocessing)
 
         Returns:
-            Tuple of (arrangement_pattern, arrangement_blocks_json)
-            Example: ("O-A-B-A-C", "[{...block data...}]")
+            Dict with raw and smoothed arrangement data, or None if failed
+            Example: {
+                'raw_pattern': 'A-O-O-O-A-A-B-B-...',
+                'smoothed_pattern': 'O-A-B-A-C',
+                'raw_predictions': [1,0,0,0,1,1,2,2,...],
+                'raw_confidence_scores': [0.64,0.95,0.67,...]
+            }
         """
         try:
             # Get raw predictions from CRNN
             predicted_classes, confidence_scores, _audio_features = self.process_audio_with_crnn(audio_path)
 
             if predicted_classes is None:
-                return None, None
+                return None
 
-            # Apply postprocessing to get clean arrangement blocks
-            from classifier.arrangement_postprocessing import process_arrangement_predictions
+            # Create compressed raw pattern with counts
+            raw_pattern = self._compress_pattern_with_counts(predicted_classes.tolist())
 
-            blocks, analysis = process_arrangement_predictions(
-                predicted_classes, confidence_scores, self.class_names,
+            # Generate smoothed pattern using helper method
+            blocks, analysis = self.get_smoothed_blocks(
+                predicted_classes.tolist(), confidence_scores.tolist(),
                 min_segment_length=min_segment_length,
                 confidence_threshold=confidence_threshold
             )
-
-            # Extract pattern string and JSON blocks
-            arrangement_pattern = '-'.join(analysis['section_sequence'])
-            arrangement_blocks_json = json.dumps(blocks)
+            smoothed_pattern = '-'.join(analysis['section_sequence'])
 
             print(f"Arrangement analysis complete:")
-            print(f"   Pattern: {arrangement_pattern}")
-            print(f"   Blocks: {len(blocks)} sections")
+            print(f"   Raw pattern: {raw_pattern}")
+            print(f"   Smoothed pattern: {smoothed_pattern}")
+            print(f"   Smoothed blocks: {len(blocks)} sections")
             print(f"   Structure type: {analysis['structure_type']}")
 
-            return arrangement_pattern, arrangement_blocks_json
+            return {
+                'raw_pattern': raw_pattern,
+                'smoothed_pattern': smoothed_pattern,
+                'raw_predictions': predicted_classes.tolist(),
+                'raw_confidence_scores': confidence_scores.tolist()
+            }
 
         except Exception as e:
             print(f"❌ Error analyzing arrangement structure: {e}")
