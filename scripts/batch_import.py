@@ -6,7 +6,7 @@ Scans data/batch_import/ for folders containing input.mp3 and reference.mp3 pair
 processes audio features, and creates TrainingExample entries with placeholder feedback.
 """
 
-import os 
+import os
 import sys
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -135,7 +135,9 @@ class BatchImporter:
 
         return valid_folders
 
-    def import_track_pair(self, folder: Path, classify_arrangement: bool = True) -> Optional[int]:
+    def import_track_pair(
+        self, folder: Path, classify_arrangement: bool = True
+    ) -> Optional[int]:
         """Import a single track pair folder."""
         folder_name = folder.name
         logger.info(f"Importing track pair: {folder_name}")
@@ -213,11 +215,15 @@ class BatchImporter:
                 failed_imports.append(folder.name)
 
         # Now process all pending arrangement analyses
-        logger.info("🎵 Fast import complete! Now processing arrangement classifications...")
+        logger.info(
+            "🎵 Fast import complete! Now processing arrangement classifications..."
+        )
         if self.operations._pending_arrangement_analysis:
             self.operations.process_pending_arrangements()
         else:
-            logger.info("🎵 No pending arrangement classifications found - all tracks imported without arrangement data")
+            logger.info(
+                "🎵 No pending arrangement classifications found - all tracks imported without arrangement data"
+            )
 
         # Summary
         summary = {
@@ -238,11 +244,15 @@ class BatchImporter:
 def main():
     """Main entry point for batch import."""
     import argparse
-    
-    parser = argparse.ArgumentParser(description="Batch import tracks with optional database reset")
-    parser.add_argument("--reset-db", action="store_true", help="Reset database before import")
+
+    parser = argparse.ArgumentParser(
+        description="Batch import tracks with optional database reset"
+    )
+    parser.add_argument(
+        "--reset-db", action="store_true", help="Reset database before import"
+    )
     args = parser.parse_args()
-    
+
     # Get database connection URL
     connection_url = os.getenv(
         "DB_CONNECTION_URL",

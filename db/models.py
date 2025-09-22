@@ -19,8 +19,10 @@ class Track(Base):
     # Raw arrangement data from model
     raw_arrangement_pattern = Column(String, nullable=True)
     raw_predictions = Column(Text, nullable=True)  # JSON array of class indices
-    raw_confidence_scores = Column(Text, nullable=True)  # JSON array of confidence scores
-    
+    raw_confidence_scores = Column(
+        Text, nullable=True
+    )  # JSON array of confidence scores
+
     # Smoothed arrangement data for quick access
     smoothed_arrangement_pattern = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)

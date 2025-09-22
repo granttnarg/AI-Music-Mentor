@@ -29,3 +29,6 @@ Thumbs.db
 info/*.pdf
 
 logs/*.log
+
+# still work in progress
+notebooks/4class-final-notebook-DONT-COMMIT.ipynb

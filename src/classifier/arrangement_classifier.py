@@ -15,33 +15,49 @@ from pathlib import Path
 
 ## HELPER METHODS FOR OUR CRNN MODEL
 
+
 # Model Arch Pre FineTunning
 def create_original_crnn_model(max_frames_per_meter=300, max_meters=201, n_features=15):
     """Recreate the exact CRNN model architecture."""
     frame_input = tf.keras.layers.Input(shape=(max_frames_per_meter, n_features))
-    conv1 = tf.keras.layers.Conv1D(filters=128, kernel_size=3, activation='relu', padding='same')(frame_input)
-    pool1 = tf.keras.layers.MaxPooling1D(pool_size=2, padding='same')(conv1)
-    conv2 = tf.keras.layers.Conv1D(filters=256, kernel_size=3, activation='relu', padding='same')(pool1)
-    pool2 = tf.keras.layers.MaxPooling1D(pool_size=2, padding='same')(conv2)
-    conv3 = tf.keras.layers.Conv1D(filters=256, kernel_size=3, activation='relu', padding='same')(pool2)
-    pool3 = tf.keras.layers.MaxPooling1D(pool_size=2, padding='same')(conv3)
+    conv1 = tf.keras.layers.Conv1D(
+        filters=128, kernel_size=3, activation="relu", padding="same"
+    )(frame_input)
+    pool1 = tf.keras.layers.MaxPooling1D(pool_size=2, padding="same")(conv1)
+    conv2 = tf.keras.layers.Conv1D(
+        filters=256, kernel_size=3, activation="relu", padding="same"
+    )(pool1)
+    pool2 = tf.keras.layers.MaxPooling1D(pool_size=2, padding="same")(conv2)
+    conv3 = tf.keras.layers.Conv1D(
+        filters=256, kernel_size=3, activation="relu", padding="same"
+    )(pool2)
+    pool3 = tf.keras.layers.MaxPooling1D(pool_size=2, padding="same")(conv3)
     frame_features = tf.keras.layers.Flatten()(pool3)
     frame_feature_model = tf.keras.Model(inputs=frame_input, outputs=frame_features)
 
-    meter_input = tf.keras.layers.Input(shape=(max_meters, max_frames_per_meter, n_features))
+    meter_input = tf.keras.layers.Input(
+        shape=(max_meters, max_frames_per_meter, n_features)
+    )
     time_distributed = tf.keras.layers.TimeDistributed(frame_feature_model)(meter_input)
     masking_layer = tf.keras.layers.Masking(mask_value=0.0)(time_distributed)
-    lstm_out = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_sequences=True))(masking_layer)
-    output = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(1, activation='sigmoid'))(lstm_out)
+    lstm_out = tf.keras.layers.Bidirectional(
+        tf.keras.layers.LSTM(256, return_sequences=True)
+    )(masking_layer)
+    output = tf.keras.layers.TimeDistributed(
+        tf.keras.layers.Dense(1, activation="sigmoid")
+    )(lstm_out)
 
     model = tf.keras.Model(inputs=meter_input, outputs=output)
     return model
+
 
 def masked_categorical_crossentropy(y_true, y_pred):
     """Custom loss function that handles padded sequences."""
     # Create a mask from the true labels (assuming padding is represented by all zeros or -1s)
     mask = tf.reduce_sum(tf.cast(tf.not_equal(y_true, -1.0), tf.float32), axis=-1)
-    mask = tf.cast(tf.not_equal(mask, 0), tf.float32) # Mask is 1 where there is data, 0 where padded
+    mask = tf.cast(
+        tf.not_equal(mask, 0), tf.float32
+    )  # Mask is 1 where there is data, 0 where padded
 
     # Calculate categorical crossentropy
     cce = tf.keras.losses.categorical_crossentropy(y_true, y_pred)
@@ -50,13 +66,18 @@ def masked_categorical_crossentropy(y_true, y_pred):
     masked_cce = cce * mask
 
     # Return average loss (only over non-padded elements)
-    return tf.reduce_sum(masked_cce) / (tf.reduce_sum(mask) + tf.keras.backend.epsilon()) # Add epsilon for numerical stability
+    return tf.reduce_sum(masked_cce) / (
+        tf.reduce_sum(mask) + tf.keras.backend.epsilon()
+    )  # Add epsilon for numerical stability
+
 
 def masked_accuracy(y_true, y_pred):
     """Custom accuracy metric that handles padded sequences."""
     # Create a mask from the true labels (assuming padding is represented by all zeros or -1s)
     mask = tf.reduce_sum(tf.cast(tf.not_equal(y_true, -1.0), tf.float32), axis=-1)
-    mask = tf.cast(tf.not_equal(mask, 0), tf.float32) # Mask is 1 where there is data, 0 where padded
+    mask = tf.cast(
+        tf.not_equal(mask, 0), tf.float32
+    )  # Mask is 1 where there is data, 0 where padded
 
     # Get predictions and true labels (ignoring padding)
     y_pred_classes = tf.argmax(y_pred, axis=-1)
@@ -69,7 +90,10 @@ def masked_accuracy(y_true, y_pred):
     # Calculate accuracy only on non-padded elements
     correct = tf.cast(tf.equal(y_pred_masked, y_true_masked), tf.float32) * mask
 
-    return tf.reduce_sum(correct) / (tf.reduce_sum(mask) + tf.keras.backend.epsilon()) # Add epsilon for numerical stability
+    return tf.reduce_sum(correct) / (
+        tf.reduce_sum(mask) + tf.keras.backend.epsilon()
+    )  # Add epsilon for numerical stability
+
 
 # Model Arch Post FineTunning - 4 Class output [ O, A, B, C ]
 def modify_model_for_multiclass_recreated(model, num_classes=4):
@@ -79,19 +103,25 @@ def modify_model_for_multiclass_recreated(model, num_classes=4):
 
     # Using the most succesful head from our finetuning experiments, freezing the rest of the model.
     x = model.layers[-2].output
-    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(256, activation='relu'))(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(256, activation="relu"))(
+        x
+    )
     x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.3))(x)
-    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(128, activation='relu'))(x)
+    x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(128, activation="relu"))(
+        x
+    )
     x = tf.keras.layers.TimeDistributed(tf.keras.layers.Dropout(0.3))(x)
-    new_output = tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(num_classes, activation='softmax'))(x)
+    new_output = tf.keras.layers.TimeDistributed(
+        tf.keras.layers.Dense(num_classes, activation="softmax")
+    )(x)
 
     new_model = tf.keras.Model(inputs=model.input, outputs=new_output)
 
     # Compile with custom loss functions, same used in original model.
     new_model.compile(
-        optimizer='adam',
+        optimizer="adam",
         loss=masked_categorical_crossentropy,
-        metrics=[masked_accuracy]
+        metrics=[masked_accuracy],
     )
 
     return new_model
@@ -107,6 +137,7 @@ class ArrangementClassifier:
     - B (High Energy): High energy sections like drops, climaxes
     - C (Breakdown): Breakdown/transition sections
     """
+
     def __init__(self, model_dir: Optional[str] = None):
         """
         Initialize the arrangement classifier.
@@ -117,14 +148,16 @@ class ArrangementClassifier:
         self.model = None
         self.config = None
         self.class_weights = None
-        self.class_names = ['O', 'A', 'B', 'C']  # Default class names
+        self.class_names = ["O", "A", "B", "C"]  # Default class names
         self.model_dir = model_dir
-        self.segment_length_seconds = 5 # Default to 5 seconds as it was more reliable than 1.7 seconds used in original model.
+        self.segment_length_seconds = 5  # Default to 5 seconds as it was more reliable than 1.7 seconds used in original model.
         self.sample_rate = 12000
         self.hop_length = 128
         self.n_features = 15
 
-    def load_model(self, model_dir: Optional[str] = 'models/arrangement_classifier/4classes') -> bool:
+    def load_model(
+        self, model_dir: Optional[str] = "models/arrangement_classifier/4classes"
+    ) -> bool:
         """
         Load the arrangement classifier model and configuration using the tested CRNN approach.
 
@@ -145,15 +178,17 @@ class ArrangementClassifier:
             # Load configuration first
             config_path = os.path.join(self.model_dir, "config.json")
             if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
+                with open(config_path, "r") as f:
                     self.config = json.load(f)
 
                 # Update parameters from config
-                self.class_names = self.config.get('class_names', self.class_names)
-                self.segment_length_seconds = self.config.get('segment_length_seconds', 5)
-                self.sample_rate = self.config.get('sample_rate', 12000)
-                self.hop_length = self.config.get('hop_length', 128)
-                self.n_features = self.config.get('n_features', 15)
+                self.class_names = self.config.get("class_names", self.class_names)
+                self.segment_length_seconds = self.config.get(
+                    "segment_length_seconds", 5
+                )
+                self.sample_rate = self.config.get("sample_rate", 12000)
+                self.hop_length = self.config.get("hop_length", 128)
+                self.n_features = self.config.get("n_features", 15)
 
                 print(f"Configuration loaded. Classes: {self.class_names}")
             else:
@@ -168,7 +203,9 @@ class ArrangementClassifier:
 
             # Recreate the exact model architecture and load weights
             original_model = create_original_crnn_model()
-            multiclass_model = modify_model_for_multiclass_recreated(original_model, num_classes=4)
+            multiclass_model = modify_model_for_multiclass_recreated(
+                original_model, num_classes=4
+            )
 
             # Load weights with custom objects if needed
             try:
@@ -178,10 +215,12 @@ class ArrangementClassifier:
                 print("Attempting to load with custom objects...")
                 # If direct loading fails, try loading the full model with custom objects
                 custom_objects = {
-                    'masked_categorical_crossentropy': masked_categorical_crossentropy,
-                    'masked_accuracy': masked_accuracy
+                    "masked_categorical_crossentropy": masked_categorical_crossentropy,
+                    "masked_accuracy": masked_accuracy,
                 }
-                multiclass_model = tf.keras.models.load_model(model_path, custom_objects=custom_objects)
+                multiclass_model = tf.keras.models.load_model(
+                    model_path, custom_objects=custom_objects
+                )
                 print("Model loaded with custom objects")
 
             self.model = multiclass_model
@@ -190,7 +229,7 @@ class ArrangementClassifier:
             # Load class weights
             weights_path = os.path.join(self.model_dir, "class_weights.json")
             if os.path.exists(weights_path):
-                with open(weights_path, 'r') as f:
+                with open(weights_path, "r") as f:
                     self.class_weights = json.load(f)
                 print(f"Class weights loaded")
             else:
@@ -202,7 +241,9 @@ class ArrangementClassifier:
             print(f"❌ Error loading arrangement classifier model: {e}")
             return False
 
-    def process_audio_with_crnn(self, audio_path: str, trim_silence: bool = True) -> Tuple[np.ndarray, np.ndarray, any]:
+    def process_audio_with_crnn(
+        self, audio_path: str, trim_silence: bool = True
+    ) -> Tuple[np.ndarray, np.ndarray, any]:
         """
         Process audio using the tested CRNN pipeline (meter-based approach).
 
@@ -227,7 +268,10 @@ class ArrangementClassifier:
             # Process audio with CRNN pipeline
             audio_processor = AudioProcess()
             processed_audio, audio_features = audio_processor.process_audio(
-                audio_path, trim_silence=trim_silence, sr=self.sample_rate, hop_length=self.hop_length
+                audio_path,
+                trim_silence=trim_silence,
+                sr=self.sample_rate,
+                hop_length=self.hop_length,
             )
 
             if processed_audio is None:
@@ -243,7 +287,9 @@ class ArrangementClassifier:
             confidence_scores = np.max(predictions[0], axis=1)
 
             # Limit to actual audio length
-            actual_meters = min(len(audio_features.meter_grid) - 1, len(predicted_classes))
+            actual_meters = min(
+                len(audio_features.meter_grid) - 1, len(predicted_classes)
+            )
             predicted_classes = predicted_classes[:actual_meters]
             confidence_scores = confidence_scores[:actual_meters]
 
@@ -259,10 +305,12 @@ class ArrangementClassifier:
                 print(f"   {class_name}: {count} segments ({percentage:.1f}%)")
 
             # Log predictions for debugging
-            predictions_logger = logging.getLogger('predictions')
-            predictions_logger.info(f"PREDICTION | {Path(audio_path).name} | {len(predicted_classes)} segments | "
-                                  f"Pattern: {'-'.join([self.class_names[c] for c in predicted_classes])} | "
-                                  f"Avg confidence: {confidence_scores.mean():.3f}")
+            predictions_logger = logging.getLogger("predictions")
+            predictions_logger.info(
+                f"PREDICTION | {Path(audio_path).name} | {len(predicted_classes)} segments | "
+                f"Pattern: {'-'.join([self.class_names[c] for c in predicted_classes])} | "
+                f"Avg confidence: {confidence_scores.mean():.3f}"
+            )
 
             return predicted_classes, confidence_scores, audio_features
 
@@ -270,65 +318,78 @@ class ArrangementClassifier:
             print(f"❌ Error processing audio with CRNN: {e}")
             return None, None, None
 
-    def get_smoothed_blocks(self, raw_predictions: List[int], confidence_scores: List[float], 
-                           min_segment_length: int = 2, confidence_threshold: float = 0.4) -> Tuple[List[Dict], Dict]:
+    def get_smoothed_blocks(
+        self,
+        raw_predictions: List[int],
+        confidence_scores: List[float],
+        min_segment_length: int = 2,
+        confidence_threshold: float = 0.4,
+    ) -> Tuple[List[Dict], Dict]:
         """
         Helper method to generate smoothed blocks from raw predictions.
-        
+
         Args:
             raw_predictions: List of raw prediction class indices
             confidence_scores: List of confidence scores
             min_segment_length: Minimum segments for a section
             confidence_threshold: Confidence threshold for filtering
-            
+
         Returns:
             Tuple of (blocks, analysis)
         """
-        from classifier.arrangement_postprocessing import process_arrangement_predictions
+        from classifier.arrangement_postprocessing import (
+            process_arrangement_predictions,
+        )
         import numpy as np
-        
+
         predictions_array = np.array(raw_predictions)
         confidence_array = np.array(confidence_scores)
-        
+
         return process_arrangement_predictions(
-            predictions_array, confidence_array, self.class_names,
+            predictions_array,
+            confidence_array,
+            self.class_names,
             min_segment_length=min_segment_length,
-            confidence_threshold=confidence_threshold
+            confidence_threshold=confidence_threshold,
         )
 
     def _compress_pattern_with_counts(self, predictions: List[int]) -> str:
         """
         Compress raw predictions into a pattern with segment counts.
-        
+
         Args:
             predictions: List of class indices
-            
+
         Returns:
             Compressed pattern string like "1A-7O-4A-16B-1A-1C-2A"
         """
         if not predictions:
             return ""
-        
+
         compressed = []
         i = 0
-        
+
         while i < len(predictions):
             current_class = predictions[i]
             segment_start = i
-            
+
             # Count consecutive segments of same class
             while i < len(predictions) and predictions[i] == current_class:
                 i += 1
-            
+
             segment_length = i - segment_start
             class_name = self.class_names[current_class]
-            
-            compressed.append(f"{segment_length}{class_name}")
-        
-        return '-'.join(compressed)
 
-    def analyze_arrangement_structure(self, audio_path: str, min_segment_length: int = 2,
-                                    confidence_threshold: float = 0.4) -> Dict | None:
+            compressed.append(f"{segment_length}{class_name}")
+
+        return "-".join(compressed)
+
+    def analyze_arrangement_structure(
+        self,
+        audio_path: str,
+        min_segment_length: int = 2,
+        confidence_threshold: float = 0.4,
+    ) -> Dict | None:
         """
         Analyze audio and return both raw and smoothed arrangement data for database storage.
 
@@ -348,7 +409,9 @@ class ArrangementClassifier:
         """
         try:
             # Get raw predictions from CRNN
-            predicted_classes, confidence_scores, _audio_features = self.process_audio_with_crnn(audio_path)
+            predicted_classes, confidence_scores, _audio_features = (
+                self.process_audio_with_crnn(audio_path)
+            )
 
             if predicted_classes is None:
                 return None
@@ -358,11 +421,12 @@ class ArrangementClassifier:
 
             # Generate smoothed pattern using helper method
             blocks, analysis = self.get_smoothed_blocks(
-                predicted_classes.tolist(), confidence_scores.tolist(),
+                predicted_classes.tolist(),
+                confidence_scores.tolist(),
                 min_segment_length=min_segment_length,
-                confidence_threshold=confidence_threshold
+                confidence_threshold=confidence_threshold,
             )
-            smoothed_pattern = '-'.join(analysis['section_sequence'])
+            smoothed_pattern = "-".join(analysis["section_sequence"])
 
             print(f"Arrangement analysis complete:")
             print(f"   Raw pattern: {raw_pattern}")
@@ -371,10 +435,10 @@ class ArrangementClassifier:
             print(f"   Structure type: {analysis['structure_type']}")
 
             return {
-                'raw_pattern': raw_pattern,
-                'smoothed_pattern': smoothed_pattern,
-                'raw_predictions': predicted_classes.tolist(),
-                'raw_confidence_scores': confidence_scores.tolist()
+                "raw_pattern": raw_pattern,
+                "smoothed_pattern": smoothed_pattern,
+                "raw_predictions": predicted_classes.tolist(),
+                "raw_confidence_scores": confidence_scores.tolist(),
             }
 
         except Exception as e:
@@ -399,8 +463,8 @@ class ArrangementClassifier:
         total_duration = 0.0
 
         for segment in timestamped_segments:
-            section = segment['arrangement_section']
-            duration = segment['duration']
+            section = segment["arrangement_section"]
+            duration = segment["duration"]
 
             class_counts[section] += 1
             class_durations[section] += duration
@@ -408,17 +472,21 @@ class ArrangementClassifier:
 
         # Calculate percentages
         class_percentages = {
-            class_name: (class_durations[class_name] / total_duration) * 100 if total_duration > 0 else 0
+            class_name: (
+                (class_durations[class_name] / total_duration) * 100
+                if total_duration > 0
+                else 0
+            )
             for class_name in self.class_names
         }
 
         return {
-            'total_segments': len(timestamped_segments),
-            'total_duration': total_duration,
-            'class_counts': class_counts,
-            'class_durations': class_durations,
-            'class_percentages': class_percentages,
-            'average_confidence': np.mean([s['confidence'] for s in timestamped_segments])
+            "total_segments": len(timestamped_segments),
+            "total_duration": total_duration,
+            "class_counts": class_counts,
+            "class_durations": class_durations,
+            "class_percentages": class_percentages,
+            "average_confidence": np.mean(
+                [s["confidence"] for s in timestamped_segments]
+            ),
         }
-
-

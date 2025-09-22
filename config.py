@@ -12,16 +12,16 @@ def setup_logging(level=logging.INFO):
     )
 
     # Setup predictions logger for debugging
-    predictions_logger = logging.getLogger('predictions')
+    predictions_logger = logging.getLogger("predictions")
     predictions_logger.setLevel(logging.INFO)
 
     # Create logs directory if it doesn't exist
-    os.makedirs('logs', exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
 
     # File handler for predictions
-    predictions_handler = logging.FileHandler('logs/predictions.log')
+    predictions_handler = logging.FileHandler("logs/predictions.log")
     predictions_handler.setLevel(logging.INFO)
-    predictions_formatter = logging.Formatter('%(asctime)s - %(message)s')
+    predictions_formatter = logging.Formatter("%(asctime)s - %(message)s")
     predictions_handler.setFormatter(predictions_formatter)
 
     # Avoid duplicate handlers
