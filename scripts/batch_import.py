@@ -28,9 +28,17 @@ logger = logging.getLogger(__name__)
 
 
 class BatchImporter:
-    def __init__(self, db_connection_url: str):
+    def __init__(self, db_connection_url: str, reset_db: bool = True):
         """Initialize the batch importer with database connection."""
         self.db = AudioRAGDatabase(db_connection_url)
+
+        if reset_db:
+            print("🔥 Resetting database...")
+            self.db.reset_database()
+            print("🏗️  Setting up fresh database...")
+            self.db.setup_database()
+            print("✅ Database reset complete!")
+
         self.operations = AudioRAGOperations(self.db)
         self.audio_service = AudioFeatureService()
         self.batch_import_dir = Path("data/batch_import")
@@ -120,14 +128,16 @@ class BatchImporter:
             else:
                 missing = []
                 if not input_file:
-                    missing.append("input--*.mp3")
+                    missing.append("input--*.(mp3|wav|aif)")
                 if not reference_file:
-                    missing.append("ref--*.mp3")
+                    missing.append("ref--*.(mp3|wav|aif)")
                 logger.warning(f"Skipping {folder.name}: missing {', '.join(missing)}")
 
         return valid_folders
 
-    def import_track_pair(self, folder: Path) -> Optional[int]:
+    def import_track_pair(
+        self, folder: Path, classify_arrangement: bool = True
+    ) -> Optional[int]:
         """Import a single track pair folder."""
         folder_name = folder.name
         logger.info(f"Importing track pair: {folder_name}")
@@ -166,6 +176,7 @@ class BatchImporter:
                 ref_embedding=reference_data["embedding"],
                 feedback_items=feedback_items,
                 genre=genre,
+                classify_arrangement=classify_arrangement,
             )
 
             logger.info(
@@ -190,18 +201,29 @@ class BatchImporter:
 
         logger.info(f"Found {len(track_pairs)} track pairs to import")
 
-        # Import each track pair
+        # Import each track pair (fast import, queue arrangement classification for later)
         successful_imports = []
         failed_imports = []
 
         for folder in track_pairs:
-            training_id = self.import_track_pair(folder)
+            training_id = self.import_track_pair(folder, classify_arrangement=True)
             if training_id:
                 successful_imports.append(
                     {"folder": folder.name, "training_id": training_id}
                 )
             else:
                 failed_imports.append(folder.name)
+
+        # Now process all pending arrangement analyses
+        logger.info(
+            "🎵 Fast import complete! Now processing arrangement classifications..."
+        )
+        if self.operations._pending_arrangement_analysis:
+            self.operations.process_pending_arrangements()
+        else:
+            logger.info(
+                "🎵 No pending arrangement classifications found - all tracks imported without arrangement data"
+            )
 
         # Summary
         summary = {
@@ -221,6 +243,16 @@ class BatchImporter:
 
 def main():
     """Main entry point for batch import."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Batch import tracks with optional database reset"
+    )
+    parser.add_argument(
+        "--reset-db", action="store_true", help="Reset database before import"
+    )
+    args = parser.parse_args()
+
     # Get database connection URL
     connection_url = os.getenv(
         "DB_CONNECTION_URL",
@@ -233,7 +265,7 @@ def main():
 
     # Run batch import
     try:
-        importer = BatchImporter(connection_url)
+        importer = BatchImporter(connection_url, reset_db=args.reset_db)
         results = importer.run_batch_import()
 
         if results["success"]:

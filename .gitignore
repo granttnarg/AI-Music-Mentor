@@ -18,7 +18,8 @@ data/uploads/session_*/*.json
 # Models (if large)
 models/*.pkl
 models/*.bin
-models/*.h5
+models/*/*/*.h5
+models/*/*/*.json
 *.model
 
 # OS
@@ -26,3 +27,8 @@ models/*.h5
 Thumbs.db
 
 info/*.pdf
+
+logs/*.log
+
+# still work in progress
+notebooks/4class-final-notebook-DONT-COMMIT.ipynb

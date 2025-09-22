@@ -7,11 +7,11 @@ Place track pairs in individual folders under this directory.
 ```
 batch_import/
 ├── track_name_01/
-│   ├── input--my_unfinished_track.mp3      # Unfinished track
+│   ├── input--my_unfinished_track.wav      # Unfinished track
 │   └── ref--target_finished_track.mp3     # Finished/target track
 ├── track_name_02/
-│   ├── input--another_sketch.mp3
-│   └── ref--professional_reference.mp3
+│   ├── input--another_sketch.aif
+│   └── ref--professional_reference.wav
 ```
 
 ## Naming Convention
@@ -20,7 +20,7 @@ batch_import/
 - **File names** must use prefixes:
   - `input--` for unfinished tracks (e.g., `input--my_song_sketch.wav`)
   - `ref--` for reference/target tracks (e.g., `ref--professional_example.mp3`)
-  - Supports: MP3, WAV, FLAC, M4A, OGG formats
+  - Supports: MP3, WAV, AIF formats
 - You can keep your original filenames after the prefix
 - Genre defaults to "deep techno" and can be edited later in the admin interface
 
