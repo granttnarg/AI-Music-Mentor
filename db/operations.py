@@ -1,12 +1,16 @@
 from .db import AudioRAGDatabase
 from .models import Track, UserUpload, Feedback, TrainingExample
 from datetime import datetime
-from typing import List
+from typing import List, Dict, Optional, Union
+import json
+from pathlib import Path
 
 
 class AudioRAGOperations:
     def __init__(self, db: AudioRAGDatabase):
         self.db = db
+        self.arrangement_classifier = None  # Lazy load
+        self._pending_arrangement_analysis = []  # Queue for async processing
 
     def get_track(self, track_id: int):
         """Get a track by ID"""
@@ -22,6 +26,10 @@ class AudioRAGOperations:
                     "sample_rate": track.sample_rate,
                     "embedding": track.global_embedding,
                     "processed_at": track.processed_at,
+                    "raw_arrangement_pattern": track.raw_arrangement_pattern,
+                    "smoothed_arrangement_pattern": track.smoothed_arrangement_pattern,
+                    "raw_predictions": track.raw_predictions,
+                    "raw_confidence_scores": track.raw_confidence_scores,
                 }
             else:
                 return None
@@ -40,6 +48,85 @@ class AudioRAGOperations:
             return existing is not None
         finally:
             session.close()
+
+    def _get_arrangement_classifier(self):
+        """Lazy load the arrangement classifier"""
+        if self.arrangement_classifier is None:
+            try:
+                # Import here to avoid circular imports and load only when needed
+                import sys
+                import os
+                from pathlib import Path
+                
+                # Add project root to path for classifier imports
+                project_root = Path(__file__).parent.parent
+                sys.path.append(str(project_root / "src"))
+                
+                from classifier.arrangement_classifier import ArrangementClassifier
+                
+                model_dir = project_root / "models" / "arrangement_classifier" / "4classes"
+                self.arrangement_classifier = ArrangementClassifier(str(model_dir))
+                
+                if not self.arrangement_classifier.load_model():
+                    print("⚠️ Failed to load arrangement classifier model")
+                    self.arrangement_classifier = None
+                else:
+                    print("✅ Arrangement classifier loaded successfully")
+                    
+            except Exception as e:
+                print(f"⚠️ Error loading arrangement classifier: {e}")
+                self.arrangement_classifier = None
+                
+        return self.arrangement_classifier
+
+    def _classify_track_arrangement(self, file_path: str) -> Dict[str, Union[str, None]]:
+        """Private method to analyze track arrangement using new data structure"""
+        try:
+            classifier = self._get_arrangement_classifier()
+            if classifier is None:
+                return {
+                    'raw_pattern': None, 
+                    'smoothed_pattern': None, 
+                    'raw_predictions': None, 
+                    'raw_confidence_scores': None
+                }
+            
+            print(f"🎵 Analyzing arrangement for: {Path(file_path).name}")
+            
+            # Use the updated analyze_arrangement_structure method
+            arrangement_data = classifier.analyze_arrangement_structure(
+                file_path, 
+                min_segment_length=2, 
+                confidence_threshold=0.4
+            )
+            
+            if not arrangement_data:
+                return {
+                    'raw_pattern': None, 
+                    'smoothed_pattern': None, 
+                    'raw_predictions': None, 
+                    'raw_confidence_scores': None
+                }
+            
+            print(f"✅ Arrangement analysis complete:")
+            print(f"   Raw: {arrangement_data['raw_pattern']}")
+            print(f"   Smoothed: {arrangement_data['smoothed_pattern']}")
+            
+            return {
+                'raw_pattern': arrangement_data['raw_pattern'],
+                'smoothed_pattern': arrangement_data['smoothed_pattern'],
+                'raw_predictions': json.dumps(arrangement_data['raw_predictions']),
+                'raw_confidence_scores': json.dumps(arrangement_data['raw_confidence_scores'])
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Arrangement analysis failed for {file_path}: {e}")
+            return {
+                'raw_pattern': None, 
+                'smoothed_pattern': None, 
+                'raw_predictions': None, 
+                'raw_confidence_scores': None
+            }
 
     def add_user_upload(
         self,
@@ -118,6 +205,7 @@ class AudioRAGOperations:
         ref_embedding: List[float],
         feedback_items: List[dict],
         genre: str = "techno",
+        classify_arrangement: bool = True,
     ):
         """
         Add a training example with tracks and feedback to the database.
@@ -142,6 +230,7 @@ class AudioRAGOperations:
                 input_duration,
                 input_sample_rate,
                 input_embedding,
+                classify_arrangement,
             )
 
             ref_track = self._add_track(
@@ -150,6 +239,7 @@ class AudioRAGOperations:
                 ref_duration,
                 ref_sample_rate,
                 ref_embedding,
+                classify_arrangement,
             )
 
             session.flush()  # Get track IDs
@@ -377,6 +467,7 @@ class AudioRAGOperations:
         duration: float,
         sample_rate: int,
         embedding: List[float],
+        classify_arrangement: bool = True,
     ) -> Track:
         """Add a track using the provided session"""
 
@@ -391,15 +482,72 @@ class AudioRAGOperations:
             existing_track.sample_rate = sample_rate
             existing_track.global_embedding = embedding
             existing_track.processed_at = datetime.now()
+            
             return existing_track
         else:
-            # Create new track
+            # Create new track WITHOUT arrangement data first (fast)
             track = Track(
                 file_path=file_path,
                 duration=duration,
                 sample_rate=sample_rate,
                 global_embedding=embedding,
                 processed_at=datetime.now(),
+                raw_arrangement_pattern=None,  # Will be updated later
+                raw_predictions=None,
+                raw_confidence_scores=None,
+                smoothed_arrangement_pattern=None,
             )
             session.add(track)
+            session.flush()  # Get the track ID
+            
+            # If arrangement classification requested, do it async after commit
+            if classify_arrangement:
+                # Store track ID for async processing
+                self._pending_arrangement_analysis.append({
+                    'track_id': track.id,
+                    'file_path': file_path
+                })
+            
             return track
+
+    def process_pending_arrangements(self):
+        """Process all pending arrangement analysis synchronously"""
+        if not self._pending_arrangement_analysis:
+            return
+        
+        print(f"🎵 Processing {len(self._pending_arrangement_analysis)} pending arrangement analyses...")
+        
+        for item in self._pending_arrangement_analysis:
+            try:
+                self.update_track_arrangement(item['track_id'], item['file_path'])
+                print(f"✅ Updated arrangement for track {item['track_id']}")
+            except Exception as e:
+                print(f"❌ Failed to analyze arrangement for track {item['track_id']}: {e}")
+        
+        # Clear the queue
+        self._pending_arrangement_analysis.clear()
+        print("🎵 All pending arrangement analyses complete!")
+
+    def update_track_arrangement(self, track_id: int, file_path: str):
+        """Update a specific track with arrangement analysis"""
+        session = self.db.get_session()
+        try:
+            # Get arrangement analysis
+            arrangement = self._classify_track_arrangement(file_path)
+            
+            # Update track
+            track = session.query(Track).filter(Track.id == track_id).first()
+            if track:
+                track.raw_arrangement_pattern = arrangement['raw_pattern']
+                track.smoothed_arrangement_pattern = arrangement['smoothed_pattern']
+                track.raw_predictions = arrangement['raw_predictions']
+                track.raw_confidence_scores = arrangement['raw_confidence_scores']
+                session.commit()
+            else:
+                raise ValueError(f"Track {track_id} not found")
+                
+        except Exception as e:
+            session.rollback()
+            raise
+        finally:
+            session.close()
