@@ -76,7 +76,7 @@ def process_and_save_file(
 
 
 # START OF UPLOAD
-uploads_dir = Path("uploads")
+uploads_dir = Path("data/uploads")
 uploads_dir.mkdir(exist_ok=True)
 
 st.title("AI Music Mentor Dashboard")

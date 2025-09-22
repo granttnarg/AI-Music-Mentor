@@ -27,3 +27,5 @@ models/*/*/*.json
 Thumbs.db
 
 info/*.pdf
+
+logs/*.log
