@@ -160,6 +160,8 @@ class AudioRAGOperations:
                 input_duration,
                 input_sample_rate,
                 input_embedding,
+                classify_arrangement=True,
+                sync_arrangement=True,  # User uploads need immediate arrangement data for RAG
             )
             ref_track = self._add_track(
                 session,
@@ -167,6 +169,8 @@ class AudioRAGOperations:
                 ref_duration,
                 ref_sample_rate,
                 ref_embedding,
+                classify_arrangement=True,
+                sync_arrangement=True,  # User uploads need immediate arrangement data for RAG
             )
             session.flush()  # This should be enough to get the ID
 
@@ -235,6 +239,7 @@ class AudioRAGOperations:
                 input_sample_rate,
                 input_embedding,
                 classify_arrangement,
+                sync_arrangement=False,  # Training examples use async processing for performance
             )
 
             ref_track = self._add_track(
@@ -244,6 +249,7 @@ class AudioRAGOperations:
                 ref_sample_rate,
                 ref_embedding,
                 classify_arrangement,
+                sync_arrangement=False,  # Training examples use async processing for performance
             )
 
             session.flush()  # Get track IDs
@@ -304,11 +310,19 @@ class AudioRAGOperations:
                             "id": example.example_track.id,
                             "file_path": example.example_track.file_path,
                             "duration": example.example_track.duration,
+                            "raw_arrangement_pattern": example.example_track.raw_arrangement_pattern,
+                            "smoothed_arrangement_pattern": example.example_track.smoothed_arrangement_pattern,
+                            "raw_predictions": example.example_track.raw_predictions,
+                            "raw_confidence_scores": example.example_track.raw_confidence_scores,
                         },
                         "reference_track": {
                             "id": example.reference_track.id,
                             "file_path": example.reference_track.file_path,
                             "duration": example.reference_track.duration,
+                            "raw_arrangement_pattern": example.reference_track.raw_arrangement_pattern,
+                            "smoothed_arrangement_pattern": example.reference_track.smoothed_arrangement_pattern,
+                            "raw_predictions": example.reference_track.raw_predictions,
+                            "raw_confidence_scores": example.reference_track.raw_confidence_scores,
                         },
                         "feedback_items": [
                             {
@@ -472,8 +486,15 @@ class AudioRAGOperations:
         sample_rate: int,
         embedding: List[float],
         classify_arrangement: bool = True,
+        sync_arrangement: bool = False,
     ) -> Track:
-        """Add a track using the provided session"""
+        """Add a track using the provided session
+        
+        Args:
+            sync_arrangement: If True, process arrangement analysis synchronously (blocking).
+                             If False, queue for async processing. Use True for user uploads
+                             that need immediate arrangement data for RAG feedback.
+        """
 
         # Check if track already exists
         existing_track = (
@@ -486,6 +507,12 @@ class AudioRAGOperations:
             existing_track.sample_rate = sample_rate
             existing_track.global_embedding = embedding
             existing_track.processed_at = datetime.now()
+            
+            # If sync arrangement requested and track doesn't have arrangement data, process it
+            if classify_arrangement and sync_arrangement and not existing_track.raw_arrangement_pattern:
+                session.commit()  # Commit updates first
+                self.update_track_arrangement(existing_track.id, file_path)
+                print(f"✅ Added missing arrangement data to existing track {existing_track.id}")
 
             return existing_track
         else:
@@ -504,12 +531,18 @@ class AudioRAGOperations:
             session.add(track)
             session.flush()  # Get the track ID
 
-            # If arrangement classification requested, do it async after commit
+            # If arrangement classification requested
             if classify_arrangement:
-                # Store track ID for async processing
-                self._pending_arrangement_analysis.append(
-                    {"track_id": track.id, "file_path": file_path}
-                )
+                if sync_arrangement:
+                    # Process arrangement synchronously (blocking)
+                    session.commit()  # Commit track first so we can update it
+                    self.update_track_arrangement(track.id, file_path)
+                    print(f"✅ Synchronous arrangement analysis complete for track {track.id}")
+                else:
+                    # Store track ID for async processing
+                    self._pending_arrangement_analysis.append(
+                        {"track_id": track.id, "file_path": file_path}
+                    )
 
             return track
 
