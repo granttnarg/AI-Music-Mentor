@@ -16,6 +16,9 @@ class Track(Base):
     sample_rate = Column(Integer)
     global_embedding = Column(Vector(19))
     processed_at = Column(DateTime)
+    arrangement_pattern = Column(String, nullable=True)
+    arrangement_confidence = Column(Float, nullable=True)
+    arrangement_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
