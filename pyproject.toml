@@ -3,7 +3,7 @@ name = "ai-music-mentor"
 version = "0.1.0"
 description = "AI Feedback Mentor for Music Production using LLM/RAG and Librosa Feature Extraction"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "black>=25.1.0",
     "chatollama>=0.2.13",
@@ -12,10 +12,14 @@ dependencies = [
     "langchain-postgres>=0.0.15",
     "langsmith>=0.4.27",
     "librosa>=0.11.0",
-    "numpy>=2.2.6",
+    "numpy>=1.26.0,<2.0.0",
     "psycopg2-binary>=2.9.10",
     "pytest>=8.4.2",
     "python-dotenv>=1.1.1",
     "scikit-learn>=1.7.2",
     "streamlit>=1.49.1",
+    "tensorflow==2.19.0",
+    "keras==3.10.0",
+    "pydub>=0.25.1",
+    "matplotlib>=3.10.6",
 ]
