@@ -26,11 +26,11 @@ class Track(Base):
 
     # Smoothed arrangement data for quick access
     smoothed_arrangement_pattern = Column(String, nullable=True)
-    
+
     # Visualization cache paths (stored in visualizations/ folder)
     waveform_viz_path = Column(String, nullable=True)  # Path to cached waveform PNG
     viz_generated_at = Column(DateTime, nullable=True)  # When visualizations were generated
-    
+
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
