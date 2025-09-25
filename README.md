@@ -49,7 +49,7 @@ docker-compose logs
 5. Set up database:
 
 ```bash
-uv run python -m admin  # Use admin interface to add DB examples for the RAG system to compare against.
+uv run streamlit run admin.py  # Use admin interface to add training examples and explore similarity visualization
 ```
 
 6. Start Ollama and pull the model:
@@ -115,11 +115,17 @@ Access database directly:
 
 ```
 ├── app.py                  # Main Streamlit User dashboard
-├── admin.py                # Streamlit Admin dasboard to popular data via UI
+├── admin.py                # Streamlit Admin dashboard with 4 tabs
 ├── main.py                 # Main App file
 ├── pyproject.toml          # Project dependencies and configuration
 ├── services/
-│   └── audio_rag.py        # RAG system with LLM integration
+│   ├── audio_rag.py        # RAG system with LLM integration
+│   └── song_visualizer_service.py  # Waveform and arrangement visualization
+├── admin_tabs/             # Admin interface components
+│   ├── add_new.py         # Training data entry interface
+│   ├── browse_edit.py     # Training data management
+│   ├── admin_eval.py      # Evaluation tracking
+│   └── similarity_viz.py  # 3D similarity visualization tool
 ├── src/
 │   ├── audio_features.py   # Audio feature extraction using Librosa
 │   └── classifier/         # Arrangement classification system
@@ -129,7 +135,7 @@ Access database directly:
 ├── db/
 │   ├── db.py              # Database connection and setup
 │   ├── models.py          # SQLAlchemy data models
-│   └── operations.py      # Database operations and queries
+│   └── operations.py      # Database operations with similarity search
 ├── data/
 │   ├── raw/               # Raw training audio files
 │   ├── processed/         # Processed feature data
@@ -137,17 +143,16 @@ Access database directly:
 │   ├── uploads/           # User uploaded files and session data
 │   └── batch_import/      # Training examples for batch processing
 ├── notebooks/             # Development and analysis notebooks
-├── scripts/
-│   └── batch_import.py    # Batch processing for training examples
+├── scripts/               # Utility scripts for data processing
 ├── models/
 │   └── arrangement_classifier/  # Pre-trained arrangement classification models
-├── visualizations/         # Example visualization outputs
+├── visualizations/         # Generated visualization outputs (cached)
 └── tests/                # Unit tests
 ```
 
 ## How it works
 
-1. **Upload** your unfinished MP3 track and a reference through the Streamlit interface
+1. **Upload** your unfinished audio track (MP3/WAV/AIF) and a reference through the Streamlit interface
 2. **Select** your music genre (deep techno, hard techno, house, etc.)
 3. **Enter** specific questions or areas you want feedback on
 4. **Get** AI-powered arrangement advice using:
@@ -163,12 +168,15 @@ _Example: Arrangement classification showing different sections (O=Other, A=Medi
 
 - **Audio Analysis**: Extracts musical features using Librosa (tempo, key, spectral features, etc.)
 - **Arrangement Classification**: Deep learning model that identifies track sections (intro/outro, medium energy, high energy, breakdown)
-- **Pattern Recognition**: Compressed arrangement patterns (e.g., "1A-4O-8C-3B") for quick structure analysis
-- **RAG System**: Retrieval-augmented generation for contextual feedback
-- **Database Storage**: PostgreSQL/pgvector backend for tracks, features, and user feedback
+- **3D Similarity Visualization**: Interactive 3D embedding space visualization for debugging similarity search with multiple distance metrics
+- **Pattern Recognition**: Compressed arrangement patterns (e.g., "O-A-B-C-A-B-O") for structure analysis
+- **RAG System**: Retrieval-augmented generation for contextual feedback using similar track examples
+- **Multiple Similarity Metrics**: Cosine, Euclidean, and Inner Product distance calculations for track matching
+- **Database Storage**: PostgreSQL with vector similarity search for tracks, embeddings, and training examples
 - **Batch Import**: Process multiple training examples with automatic arrangement analysis
-- **Admin Interface**: Tools for managing training data and user feedback
+- **Admin Interface**: Comprehensive tools for managing training data, evaluation tracking, and similarity debugging
 - **LangChain/Smith Integration**: Observability and tracing for LLM interactions
+- **Multi-format Audio Support**: Supports MP3, WAV, AIF/AIFF file formats
 - **Genre Support**: Specialized for electronic music genres (techno, house, electro, etc.)
 
 ## License
