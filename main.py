@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# SIMPLE SCRIPT TO RESET OUR DB
+
 connection_url = os.getenv("DB_CONNECTION_URL")
 db = AudioRAGDatabase(connection_url)
 db.reset_database()  # Drops all tables

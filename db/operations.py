@@ -3,7 +3,24 @@ from .models import Track, UserUpload, Feedback, TrainingExample
 from datetime import datetime
 from typing import List, Dict, Optional, Union
 import json
+import numpy as np
 from pathlib import Path
+
+
+def convert_numpy_types(obj):
+    """Convert numpy types to Python native types for JSON serialization."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    else:
+        return obj
 
 
 class AudioRAGOperations:
@@ -150,6 +167,8 @@ class AudioRAGOperations:
         reference_file_size_bytes,
         input_original_filename,
         reference_original_filename,
+        input_global_features=None,
+        ref_global_features=None,
     ):
         session = self.db.get_session()
 
@@ -160,6 +179,9 @@ class AudioRAGOperations:
                 input_duration,
                 input_sample_rate,
                 input_embedding,
+                input_global_features,
+                classify_arrangement=True,
+                sync_arrangement=True,  # User uploads need immediate arrangement data for RAG
             )
             ref_track = self._add_track(
                 session,
@@ -167,6 +189,9 @@ class AudioRAGOperations:
                 ref_duration,
                 ref_sample_rate,
                 ref_embedding,
+                ref_global_features,
+                classify_arrangement=True,
+                sync_arrangement=True,  # User uploads need immediate arrangement data for RAG
             )
             session.flush()  # This should be enough to get the ID
 
@@ -210,6 +235,8 @@ class AudioRAGOperations:
         feedback_items: List[dict],
         genre: str = "techno",
         classify_arrangement: bool = True,
+        input_global_features=None,
+        ref_global_features=None,
     ):
         """
         Add a training example with tracks and feedback to the database.
@@ -234,7 +261,9 @@ class AudioRAGOperations:
                 input_duration,
                 input_sample_rate,
                 input_embedding,
+                input_global_features,
                 classify_arrangement,
+                sync_arrangement=False,  # Training examples use async processing for performance
             )
 
             ref_track = self._add_track(
@@ -243,7 +272,9 @@ class AudioRAGOperations:
                 ref_duration,
                 ref_sample_rate,
                 ref_embedding,
+                ref_global_features,
                 classify_arrangement,
+                sync_arrangement=False,  # Training examples use async processing for performance
             )
 
             session.flush()  # Get track IDs
@@ -304,11 +335,19 @@ class AudioRAGOperations:
                             "id": example.example_track.id,
                             "file_path": example.example_track.file_path,
                             "duration": example.example_track.duration,
+                            "raw_arrangement_pattern": example.example_track.raw_arrangement_pattern,
+                            "smoothed_arrangement_pattern": example.example_track.smoothed_arrangement_pattern,
+                            "raw_predictions": example.example_track.raw_predictions,
+                            "raw_confidence_scores": example.example_track.raw_confidence_scores,
                         },
                         "reference_track": {
                             "id": example.reference_track.id,
                             "file_path": example.reference_track.file_path,
                             "duration": example.reference_track.duration,
+                            "raw_arrangement_pattern": example.reference_track.raw_arrangement_pattern,
+                            "smoothed_arrangement_pattern": example.reference_track.smoothed_arrangement_pattern,
+                            "raw_predictions": example.reference_track.raw_predictions,
+                            "raw_confidence_scores": example.reference_track.raw_confidence_scores,
                         },
                         "feedback_items": [
                             {
@@ -357,11 +396,21 @@ class AudioRAGOperations:
                     "id": example.example_track.id,
                     "file_path": example.example_track.file_path,
                     "duration": example.example_track.duration,
+                    "sample_rate": example.example_track.sample_rate,
+                    "raw_arrangement_pattern": example.example_track.raw_arrangement_pattern,
+                    "smoothed_arrangement_pattern": example.example_track.smoothed_arrangement_pattern,
+                    "raw_predictions": example.example_track.raw_predictions,
+                    "raw_confidence_scores": example.example_track.raw_confidence_scores,
                 },
                 "reference_track": {
                     "id": example.reference_track.id,
                     "file_path": example.reference_track.file_path,
                     "duration": example.reference_track.duration,
+                    "sample_rate": example.reference_track.sample_rate,
+                    "raw_arrangement_pattern": example.reference_track.raw_arrangement_pattern,
+                    "smoothed_arrangement_pattern": example.reference_track.smoothed_arrangement_pattern,
+                    "raw_predictions": example.reference_track.raw_predictions,
+                    "raw_confidence_scores": example.reference_track.raw_confidence_scores,
                 },
                 "feedback_items": [
                     {
@@ -423,6 +472,7 @@ class AudioRAGOperations:
         finally:
             session.close()
 
+    # was looking thru all tracks and we only want tracks with training examples this should be removed later
     def find_similar_tracks(
         self,
         embedding: List[float],
@@ -462,6 +512,58 @@ class AudioRAGOperations:
         finally:
             session.close()
 
+    def find_similar_tracks_with_training_examples(
+        self,
+        embedding: List[float],
+        metric: str = "cosine",
+        limit: int = 5,
+        threshold: float | None = None,
+    ) -> List[Track]:
+        """Find tracks using specified distance metric, but only among tracks that have training examples"""
+        session = self.db.get_session()
+
+        try:
+            # Base query: only tracks that have training examples and embeddings
+            base_query = (
+                session.query(Track)
+                .join(TrainingExample, Track.id == TrainingExample.example_track_id)
+                .filter(Track.global_embedding.is_not(None))
+            )
+
+            if metric == "cosine":
+                distance = Track.global_embedding.cosine_distance(embedding)
+                query = base_query.order_by(distance)
+                if threshold is not None:
+                    query = query.filter(distance <= threshold)
+
+            elif metric == "euclidean":
+                distance = Track.global_embedding.l2_distance(embedding)
+                query = base_query.order_by(distance)
+                if threshold is not None:
+                    query = query.filter(distance <= threshold)
+
+            elif metric == "inner_product":
+                score = Track.global_embedding.max_inner_product(embedding)
+                query = base_query.order_by(score.desc())
+                if threshold is not None:
+                    query = query.filter(score >= threshold)
+            else:
+                raise ValueError(f"Unknown metric: {metric}")
+
+            tracks = query.limit(limit).all()
+            print(
+                f"DEBUG: Found {len(tracks)} similar tracks with training examples using {metric}"
+            )
+            return tracks
+
+        except Exception as e:
+            print(
+                f"✗ Error finding similar tracks with training examples ({metric}): {e}"
+            )
+            raise
+        finally:
+            session.close()
+
     ## PRIVATE METHODS ##
 
     def _add_track(
@@ -471,9 +573,17 @@ class AudioRAGOperations:
         duration: float,
         sample_rate: int,
         embedding: List[float],
+        global_feature_data: dict = None,
         classify_arrangement: bool = True,
+        sync_arrangement: bool = False,
     ) -> Track:
-        """Add a track using the provided session"""
+        """Add a track using the provided session
+
+        Args:
+            sync_arrangement: If True, process arrangement analysis synchronously (blocking).
+                             If False, queue for async processing. Use True for user uploads
+                             that need immediate arrangement data for RAG feedback.
+        """
 
         # Check if track already exists
         existing_track = (
@@ -484,8 +594,27 @@ class AudioRAGOperations:
             # Update existing track
             existing_track.duration = duration
             existing_track.sample_rate = sample_rate
-            existing_track.global_embedding = embedding
+            existing_track.global_embedding = (
+                convert_numpy_types(embedding) if embedding is not None else None
+            )
+            existing_track.global_feature_data = (
+                convert_numpy_types(global_feature_data)
+                if global_feature_data
+                else None
+            )
             existing_track.processed_at = datetime.now()
+
+            # If sync arrangement requested and track doesn't have arrangement data, process it
+            if (
+                classify_arrangement
+                and sync_arrangement
+                and not existing_track.raw_arrangement_pattern
+            ):
+                session.commit()  # Commit updates first
+                self.update_track_arrangement(existing_track.id, file_path)
+                print(
+                    f"✅ Added missing arrangement data to existing track {existing_track.id}"
+                )
 
             return existing_track
         else:
@@ -494,7 +623,14 @@ class AudioRAGOperations:
                 file_path=file_path,
                 duration=duration,
                 sample_rate=sample_rate,
-                global_embedding=embedding,
+                global_embedding=(
+                    convert_numpy_types(embedding) if embedding is not None else None
+                ),
+                global_feature_data=(
+                    convert_numpy_types(global_feature_data)
+                    if global_feature_data
+                    else None
+                ),
                 processed_at=datetime.now(),
                 raw_arrangement_pattern=None,  # Will be updated later
                 raw_predictions=None,
@@ -504,12 +640,20 @@ class AudioRAGOperations:
             session.add(track)
             session.flush()  # Get the track ID
 
-            # If arrangement classification requested, do it async after commit
+            # If arrangement classification requested
             if classify_arrangement:
-                # Store track ID for async processing
-                self._pending_arrangement_analysis.append(
-                    {"track_id": track.id, "file_path": file_path}
-                )
+                if sync_arrangement:
+                    # Process arrangement synchronously (blocking)
+                    session.commit()  # Commit track first so we can update it
+                    self.update_track_arrangement(track.id, file_path)
+                    print(
+                        f"✅ Synchronous arrangement analysis complete for track {track.id}"
+                    )
+                else:
+                    # Store track ID for async processing
+                    self._pending_arrangement_analysis.append(
+                        {"track_id": track.id, "file_path": file_path}
+                    )
 
             return track
 
