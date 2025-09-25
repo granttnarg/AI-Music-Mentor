@@ -26,7 +26,7 @@ def process_and_save_training_file(file, file_type, session_dir):
     service = AudioFeatureService()
     try:
         global_features = service.load_audio_file(file_path).extract_global_features(
-            max_duration=150
+            max_duration=400
         )
         embedding = service.create_embedding_vector(global_features)
         feature_data = service.build_feature_data_object(
@@ -39,6 +39,7 @@ def process_and_save_training_file(file, file_type, session_dir):
             "duration": feature_data["metadata"]["duration"],
             "sample_rate": feature_data["metadata"]["sample_rate"],
             "embedding": embedding,
+            "global_features": global_features,
             "success": True,
         }
     except Exception as e:
@@ -126,11 +127,12 @@ def show_add_new_tab():
             key="rhythm_feedback",
         )
 
-        rhythmic_practical = st.text_area(
-            "Rhythmic practical suggestions",
-            placeholder="Specific exercises or techniques to improve rhythmic elements...",
-            height=100,
-            key="rhythm_practical",
+        st.markdown("**Arrangement Feedback**")
+        arrangement_feedback = st.text_area(
+            "Arrangement and structure analysis",
+            placeholder="Comments on song structure, transitions, energy flow, section development...",
+            height=120,
+            key="arrangement_feedback",
         )
 
     with feedback_col2:
@@ -142,11 +144,12 @@ def show_add_new_tab():
             key="eq_feedback",
         )
 
-        eq_practical = st.text_area(
-            "EQ practical suggestions",
-            placeholder="Specific EQ techniques, frequency targeting, mixing advice...",
-            height=100,
-            key="eq_practical",
+        st.markdown("**Problem-Solution Feedback**")
+        problem_solution_feedback = st.text_area(
+            "Specific problems and actionable solutions",
+            placeholder="Problems:\n- Issue 1\n- Issue 2\n\nSolutions:\n- Specific fix 1\n- Specific fix 2",
+            height=120,
+            key="problem_solution_feedback",
         )
 
     # Preview section
@@ -163,14 +166,14 @@ def show_add_new_tab():
             if rhythmic_feedback.strip():
                 feedback_data["rhythmic_feedback"] = rhythmic_feedback.strip()
 
-            if rhythmic_practical.strip():
-                feedback_data["rhythmic_practical"] = rhythmic_practical.strip()
+            if arrangement_feedback.strip():
+                feedback_data["arrangement_feedback"] = arrangement_feedback.strip()
 
             if eq_feedback.strip():
                 feedback_data["eq_feedback"] = eq_feedback.strip()
 
-            if eq_practical.strip():
-                feedback_data["eq_practical"] = eq_practical.strip()
+            if problem_solution_feedback.strip():
+                feedback_data["problem_solution_feedback"] = problem_solution_feedback.strip()
 
             preview_data = {
                 "timestamp": datetime.now().isoformat(),
@@ -233,11 +236,11 @@ def show_add_new_tab():
                             }
                         )
 
-                    if rhythmic_practical.strip():
+                    if arrangement_feedback.strip():
                         feedback_items.append(
                             {
-                                "feedback_type": "rhythm_practical",
-                                "feedback_text": rhythmic_practical.strip(),
+                                "feedback_type": "arrangement",
+                                "feedback_text": arrangement_feedback.strip(),
                             }
                         )
 
@@ -249,11 +252,11 @@ def show_add_new_tab():
                             }
                         )
 
-                    if eq_practical.strip():
+                    if problem_solution_feedback.strip():
                         feedback_items.append(
                             {
-                                "feedback_type": "eq_practical",
-                                "feedback_text": eq_practical.strip(),
+                                "feedback_type": "problem-solution",
+                                "feedback_text": problem_solution_feedback.strip(),
                             }
                         )
 
@@ -271,6 +274,8 @@ def show_add_new_tab():
                             ref_embedding=ref_data["embedding"],
                             feedback_items=feedback_items,
                             genre=track_genre,
+                            input_global_features=input_data["global_features"],
+                            ref_global_features=ref_data["global_features"],
                         )
 
                         st.success(f"✅ Training example saved! ID: {training_id}")
