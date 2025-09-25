@@ -173,7 +173,9 @@ def show_add_new_tab():
                 feedback_data["eq_feedback"] = eq_feedback.strip()
 
             if problem_solution_feedback.strip():
-                feedback_data["problem_solution_feedback"] = problem_solution_feedback.strip()
+                feedback_data["problem_solution_feedback"] = (
+                    problem_solution_feedback.strip()
+                )
 
             preview_data = {
                 "timestamp": datetime.now().isoformat(),

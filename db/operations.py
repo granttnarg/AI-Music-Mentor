@@ -551,11 +551,15 @@ class AudioRAGOperations:
                 raise ValueError(f"Unknown metric: {metric}")
 
             tracks = query.limit(limit).all()
-            print(f"DEBUG: Found {len(tracks)} similar tracks with training examples using {metric}")
+            print(
+                f"DEBUG: Found {len(tracks)} similar tracks with training examples using {metric}"
+            )
             return tracks
 
         except Exception as e:
-            print(f"✗ Error finding similar tracks with training examples ({metric}): {e}")
+            print(
+                f"✗ Error finding similar tracks with training examples ({metric}): {e}"
+            )
             raise
         finally:
             session.close()
@@ -574,7 +578,7 @@ class AudioRAGOperations:
         sync_arrangement: bool = False,
     ) -> Track:
         """Add a track using the provided session
-        
+
         Args:
             sync_arrangement: If True, process arrangement analysis synchronously (blocking).
                              If False, queue for async processing. Use True for user uploads
@@ -590,15 +594,27 @@ class AudioRAGOperations:
             # Update existing track
             existing_track.duration = duration
             existing_track.sample_rate = sample_rate
-            existing_track.global_embedding = convert_numpy_types(embedding) if embedding is not None else None
-            existing_track.global_feature_data = convert_numpy_types(global_feature_data) if global_feature_data else None
+            existing_track.global_embedding = (
+                convert_numpy_types(embedding) if embedding is not None else None
+            )
+            existing_track.global_feature_data = (
+                convert_numpy_types(global_feature_data)
+                if global_feature_data
+                else None
+            )
             existing_track.processed_at = datetime.now()
-            
+
             # If sync arrangement requested and track doesn't have arrangement data, process it
-            if classify_arrangement and sync_arrangement and not existing_track.raw_arrangement_pattern:
+            if (
+                classify_arrangement
+                and sync_arrangement
+                and not existing_track.raw_arrangement_pattern
+            ):
                 session.commit()  # Commit updates first
                 self.update_track_arrangement(existing_track.id, file_path)
-                print(f"✅ Added missing arrangement data to existing track {existing_track.id}")
+                print(
+                    f"✅ Added missing arrangement data to existing track {existing_track.id}"
+                )
 
             return existing_track
         else:
@@ -607,8 +623,14 @@ class AudioRAGOperations:
                 file_path=file_path,
                 duration=duration,
                 sample_rate=sample_rate,
-                global_embedding=convert_numpy_types(embedding) if embedding is not None else None,
-                global_feature_data=convert_numpy_types(global_feature_data) if global_feature_data else None,
+                global_embedding=(
+                    convert_numpy_types(embedding) if embedding is not None else None
+                ),
+                global_feature_data=(
+                    convert_numpy_types(global_feature_data)
+                    if global_feature_data
+                    else None
+                ),
                 processed_at=datetime.now(),
                 raw_arrangement_pattern=None,  # Will be updated later
                 raw_predictions=None,
@@ -624,7 +646,9 @@ class AudioRAGOperations:
                     # Process arrangement synchronously (blocking)
                     session.commit()  # Commit track first so we can update it
                     self.update_track_arrangement(track.id, file_path)
-                    print(f"✅ Synchronous arrangement analysis complete for track {track.id}")
+                    print(
+                        f"✅ Synchronous arrangement analysis complete for track {track.id}"
+                    )
                 else:
                     # Store track ID for async processing
                     self._pending_arrangement_analysis.append(

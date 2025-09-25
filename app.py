@@ -92,7 +92,9 @@ st.caption(
 
 
 track_genre = st.selectbox("Unfinished Track Genre:", GENRES)
-input_file = st.file_uploader("Upload Unfinished track - MP3, WAV, or AIF file", type=["mp3", "wav", "aif"])
+input_file = st.file_uploader(
+    "Upload Unfinished track - MP3, WAV, or AIF file", type=["mp3", "wav", "aif"]
+)
 
 if input_file:
     st.audio(input_file)
@@ -123,7 +125,7 @@ if st.button("Submit"):
             progress_bar = st.progress(0)
             status_text = st.empty()
             tip_container = st.empty()
-            
+
             # Music production tips to show during loading
             music_tips = [
                 "💡 **Tip**: Line up a reference track next to your track in your DAW to help you understand arrangement flow while your make your song. ",
@@ -133,34 +135,45 @@ if st.button("Submit"):
                 "⚡ **Energy tip**: Build tension with low volume subtle rising elements before your main drops can help lead the listener making impact more rewarding.",
                 "🎶 **Arrangement**: Leave space in your mix - not every element needs to play at once, its often best to let one or two elements show off in each section.",
                 "🔄 **Variation**: If you change multiple elements in A section at once it can breathe a whole new life into your tracks progression and is more impactful that just adding in hi hats or a drum variation.",
-                "🎯 **Focus**: A great track usually has one main element that everything else supports, try to understand which element is the strongest and use that as your songs backbone."
+                "🎯 **Focus**: A great track usually has one main element that everything else supports, try to understand which element is the strongest and use that as your songs backbone.",
             ]
-            
+
             import random
+
             current_tip = random.choice(music_tips)
             tip_container.info(current_tip)
-            
+
             status_text.text("🎵 Creating session folder...")
             progress_bar.progress(10)
-            
+
             status_text.text("🎧 Processing input track...")
             progress_bar.progress(20)
             # Show a new tip during processing
             current_tip = random.choice(music_tips)
             tip_container.info(current_tip)
-            
+
             input_data = process_and_save_file(
-                input_file, "input", session_dir, session_id, dropdown_option, text_input
+                input_file,
+                "input",
+                session_dir,
+                session_id,
+                dropdown_option,
+                text_input,
             )
-            
+
             status_text.text("🎼 Processing reference track...")
             progress_bar.progress(40)
             # Show another tip
             current_tip = random.choice(music_tips)
             tip_container.info(current_tip)
-            
+
             ref_data = process_and_save_file(
-                ref_file, "reference", session_dir, session_id, dropdown_option, text_input
+                ref_file,
+                "reference",
+                session_dir,
+                session_id,
+                dropdown_option,
+                text_input,
             )
 
             if input_data["success"] and ref_data["success"]:
@@ -169,7 +182,7 @@ if st.button("Submit"):
                 # Show final tip
                 current_tip = random.choice(music_tips)
                 tip_container.info(current_tip)
-                
+
                 try:
                     db_ops = get_database()
                     upload_id = db_ops.add_user_upload(
@@ -196,85 +209,118 @@ if st.button("Submit"):
                     # Collect all data before displaying anything
                     status_text.text("🎨 Generating arrangement analysis...")
                     progress_bar.progress(85)
-                    
+
                     # Prepare all visualization data
                     input_track_data = None
                     ref_track_data = None
                     input_viz_fig = None
                     ref_viz_fig = None
                     arrangement_error = None
-                    
+
                     try:
                         # Get track data with arrangement information
                         session = db_ops.db.get_session()
                         try:
                             from db.models import UserUpload
-                            upload = session.query(UserUpload).filter(UserUpload.id == upload_id).first()
+
+                            upload = (
+                                session.query(UserUpload)
+                                .filter(UserUpload.id == upload_id)
+                                .first()
+                            )
                             if upload:
-                                input_track_data = db_ops.get_track(int(upload.input_track_id))
-                                ref_track_data = db_ops.get_track(int(upload.reference_track_id))
-                                
+                                input_track_data = db_ops.get_track(
+                                    int(upload.input_track_id)
+                                )
+                                ref_track_data = db_ops.get_track(
+                                    int(upload.reference_track_id)
+                                )
+
                                 # Pre-generate visualizations
                                 visualizer = SongVisualizerService()
-                                
+
                                 # Input track visualization
-                                if input_track_data and input_track_data.get('raw_arrangement_pattern'):
-                                    if input_track_data.get('raw_predictions') and input_track_data.get('raw_confidence_scores'):
+                                if input_track_data and input_track_data.get(
+                                    "raw_arrangement_pattern"
+                                ):
+                                    if input_track_data.get(
+                                        "raw_predictions"
+                                    ) and input_track_data.get("raw_confidence_scores"):
                                         import json
                                         import numpy as np
-                                        from src.classifier.arrangement_postprocessing import process_arrangement_predictions
-                                        
-                                        raw_predictions = json.loads(input_track_data['raw_predictions'])
-                                        confidence_scores = json.loads(input_track_data['raw_confidence_scores'])
-                                        
-                                        blocks, analysis = process_arrangement_predictions(
-                                            np.array(raw_predictions), 
-                                            np.array(confidence_scores), 
-                                            ['O', 'A', 'B', 'C'],
-                                            min_segment_length=2, 
-                                            confidence_threshold=0.4
+                                        from src.classifier.arrangement_postprocessing import (
+                                            process_arrangement_predictions,
                                         )
-                                        
+
+                                        raw_predictions = json.loads(
+                                            input_track_data["raw_predictions"]
+                                        )
+                                        confidence_scores = json.loads(
+                                            input_track_data["raw_confidence_scores"]
+                                        )
+
+                                        blocks, analysis = (
+                                            process_arrangement_predictions(
+                                                np.array(raw_predictions),
+                                                np.array(confidence_scores),
+                                                ["O", "A", "B", "C"],
+                                                min_segment_length=2,
+                                                confidence_threshold=0.4,
+                                            )
+                                        )
+
                                         input_viz_fig = visualizer.plot_arrangement_waveform(
-                                            audio_path=input_track_data['file_path'],
+                                            audio_path=input_track_data["file_path"],
                                             arrangement_blocks=blocks,
-                                            title=f"Input Track: {input_data['original_filename']}"
+                                            title=f"Input Track: {input_data['original_filename']}",
                                         )
-                                
+
                                 # Reference track visualization
-                                if ref_track_data and ref_track_data.get('raw_arrangement_pattern'):
-                                    if ref_track_data.get('raw_predictions') and ref_track_data.get('raw_confidence_scores'):
+                                if ref_track_data and ref_track_data.get(
+                                    "raw_arrangement_pattern"
+                                ):
+                                    if ref_track_data.get(
+                                        "raw_predictions"
+                                    ) and ref_track_data.get("raw_confidence_scores"):
                                         import json
                                         import numpy as np
-                                        from src.classifier.arrangement_postprocessing import process_arrangement_predictions
-                                        
-                                        raw_predictions = json.loads(ref_track_data['raw_predictions'])
-                                        confidence_scores = json.loads(ref_track_data['raw_confidence_scores'])
-                                        
-                                        blocks, analysis = process_arrangement_predictions(
-                                            np.array(raw_predictions), 
-                                            np.array(confidence_scores), 
-                                            ['O', 'A', 'B', 'C'],
-                                            min_segment_length=2, 
-                                            confidence_threshold=0.4
+                                        from src.classifier.arrangement_postprocessing import (
+                                            process_arrangement_predictions,
                                         )
-                                        
+
+                                        raw_predictions = json.loads(
+                                            ref_track_data["raw_predictions"]
+                                        )
+                                        confidence_scores = json.loads(
+                                            ref_track_data["raw_confidence_scores"]
+                                        )
+
+                                        blocks, analysis = (
+                                            process_arrangement_predictions(
+                                                np.array(raw_predictions),
+                                                np.array(confidence_scores),
+                                                ["O", "A", "B", "C"],
+                                                min_segment_length=2,
+                                                confidence_threshold=0.4,
+                                            )
+                                        )
+
                                         ref_viz_fig = visualizer.plot_arrangement_waveform(
-                                            audio_path=ref_track_data['file_path'],
+                                            audio_path=ref_track_data["file_path"],
                                             arrangement_blocks=blocks,
-                                            title=f"Reference Track: {ref_data['original_filename']}"
+                                            title=f"Reference Track: {ref_data['original_filename']}",
                                         )
-                                        
+
                         finally:
                             session.close()
-                            
+
                     except Exception as e:
                         arrangement_error = str(e)
 
                     # Generate AI feedback
                     status_text.text("🤖 Generating AI feedback...")
                     progress_bar.progress(95)
-                    
+
                     feedback = None
                     feedback_error = None
                     try:
@@ -307,17 +353,23 @@ if st.button("Submit"):
                         "reference_file": ref_data["original_filename"],
                     }
                     st.json(summary)
-                    
+
                     # Display arrangement analysis
                     st.subheader("🎼 Arrangement Analysis")
-                    
+
                     if arrangement_error:
-                        st.error(f"❌ Could not load arrangement visualizations: {arrangement_error}")
+                        st.error(
+                            f"❌ Could not load arrangement visualizations: {arrangement_error}"
+                        )
                     else:
                         # Input track analysis
-                        if input_track_data and input_track_data.get('raw_arrangement_pattern'):
+                        if input_track_data and input_track_data.get(
+                            "raw_arrangement_pattern"
+                        ):
                             st.markdown("### Input Track Analysis")
-                            st.markdown(f"**Arrangement Pattern:** `{input_track_data['smoothed_arrangement_pattern']}`")
+                            st.markdown(
+                                f"**Arrangement Pattern:** `{input_track_data['smoothed_arrangement_pattern']}`"
+                            )
                             if input_viz_fig:
                                 st.pyplot(input_viz_fig)
                                 plt.close(input_viz_fig)
@@ -325,24 +377,32 @@ if st.button("Submit"):
                                 st.audio(input_file)
                         else:
                             st.info("Input track arrangement analysis not available")
-                        
+
                         # Reference track analysis
-                        if ref_track_data and ref_track_data.get('raw_arrangement_pattern'):
+                        if ref_track_data and ref_track_data.get(
+                            "raw_arrangement_pattern"
+                        ):
                             st.markdown("### Reference Track Analysis")
-                            st.markdown(f"**Arrangement Pattern:** `{ref_track_data['smoothed_arrangement_pattern']}`")
+                            st.markdown(
+                                f"**Arrangement Pattern:** `{ref_track_data['smoothed_arrangement_pattern']}`"
+                            )
                             if ref_viz_fig:
                                 st.pyplot(ref_viz_fig)
                                 plt.close(ref_viz_fig)
                             if ref_file:
                                 st.audio(ref_file)
                         else:
-                            st.info("Reference track arrangement analysis not available")
+                            st.info(
+                                "Reference track arrangement analysis not available"
+                            )
 
                     # Display AI feedback
                     st.subheader("🎵 AI Music Mentor Feedback")
                     if feedback_error:
                         st.error(f"❌ Could not generate feedback: {feedback_error}")
-                        st.info("💡 This might be because there are no training examples in the database yet.")
+                        st.info(
+                            "💡 This might be because there are no training examples in the database yet."
+                        )
                     else:
                         st.markdown(feedback)
 

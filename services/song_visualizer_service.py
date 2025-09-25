@@ -61,7 +61,7 @@ class SongVisualizerService:
         audio_path: str,
         arrangement_blocks: List[Dict],
         title: Optional[str] = None,
-        force_regenerate: bool = False
+        force_regenerate: bool = False,
     ) -> str:
         """
         Generate or retrieve cached waveform visualization.
@@ -80,11 +80,11 @@ class SongVisualizerService:
             audio_path=audio_path,
             arrangement_blocks=arrangement_blocks,
             title=title,
-            figsize=(15, 6)
+            figsize=(15, 6),
         )
 
         # Save to cache
-        fig.savefig(cache_path, dpi=150, bbox_inches='tight')
+        fig.savefig(cache_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
         return str(cache_path)

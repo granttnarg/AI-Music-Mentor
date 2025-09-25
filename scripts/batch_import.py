@@ -205,7 +205,7 @@ class BatchImporter:
             logger.info(
                 f"✅ Created TrainingExample ID: {training_id} for {folder_name}"
             )
-            
+
             return training_id
 
         except Exception as e:
@@ -218,38 +218,48 @@ class BatchImporter:
             # Get training example and track info from database
             session = self.db.get_session()
             try:
-                training_example = self.operations.get_training_example_by_id(training_id)
+                training_example = self.operations.get_training_example_by_id(
+                    training_id
+                )
                 if not training_example:
                     logger.error(f"Training example {training_id} not found")
                     return
-                
+
                 # Generate visualizations for input track
                 input_track = training_example.get("example_track")
                 if input_track:
-                    logger.info(f"🎨 Generating visualizations for input track {input_track['id']}")
+                    logger.info(
+                        f"🎨 Generating visualizations for input track {input_track['id']}"
+                    )
                     self.visualizer.generate_and_cache_visualizations(
                         track_id=input_track["id"],
                         audio_path=input_track["file_path"],
-                        arrangement_pattern=input_track.get("arrangement_pattern")
+                        arrangement_pattern=input_track.get("arrangement_pattern"),
                     )
-                
-                # Generate visualizations for reference track  
+
+                # Generate visualizations for reference track
                 reference_track = training_example.get("reference_track")
                 if reference_track:
-                    logger.info(f"🎨 Generating visualizations for reference track {reference_track['id']}")
+                    logger.info(
+                        f"🎨 Generating visualizations for reference track {reference_track['id']}"
+                    )
                     self.visualizer.generate_and_cache_visualizations(
                         track_id=reference_track["id"],
                         audio_path=reference_track["file_path"],
-                        arrangement_pattern=reference_track.get("arrangement_pattern")
+                        arrangement_pattern=reference_track.get("arrangement_pattern"),
                     )
-                    
-                logger.info(f"✅ Visualizations generated for training example {training_id}")
-                
+
+                logger.info(
+                    f"✅ Visualizations generated for training example {training_id}"
+                )
+
             finally:
                 session.close()
-                
+
         except Exception as e:
-            logger.error(f"Error generating visualizations for training example {training_id}: {e}")
+            logger.error(
+                f"Error generating visualizations for training example {training_id}: {e}"
+            )
 
     def run_batch_import(self) -> Dict[str, Any]:
         """Run the complete batch import process."""
@@ -287,15 +297,21 @@ class BatchImporter:
             logger.info(
                 "🎵 No pending arrangement classifications found - all tracks imported without arrangement data"
             )
-            
+
         # Generate visualizations AFTER arrangement analysis is complete
         logger.info("🎨 Generating visualizations with arrangement data...")
         for import_info in successful_imports:
             try:
-                self.generate_visualizations_for_training_example(import_info["training_id"])
-                logger.info(f"✅ Generated visualizations for training example {import_info['training_id']}")
+                self.generate_visualizations_for_training_example(
+                    import_info["training_id"]
+                )
+                logger.info(
+                    f"✅ Generated visualizations for training example {import_info['training_id']}"
+                )
             except Exception as e:
-                logger.error(f"❌ Failed to generate visualizations for training example {import_info['training_id']}: {e}")
+                logger.error(
+                    f"❌ Failed to generate visualizations for training example {import_info['training_id']}: {e}"
+                )
 
         # Summary
         summary = {

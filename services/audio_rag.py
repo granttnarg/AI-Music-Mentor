@@ -70,21 +70,27 @@ class AudioRAG:
             similar_tracks = self.operations.find_similar_tracks_with_training_examples(
                 embedding=list(input_track.global_embedding),
                 metric=metric,
-                limit=k  # No need to multiply since we're pre-filtering
+                limit=k,  # No need to multiply since we're pre-filtering
             )
 
-            print(f"DEBUG: Found {len(similar_tracks)} similar tracks with training examples")
+            print(
+                f"DEBUG: Found {len(similar_tracks)} similar tracks with training examples"
+            )
 
             if not similar_tracks:
                 print("DEBUG: No similar tracks with training examples found")
-                return [], user_upload, {
-                    "user_upload_id": user_upload_id,
-                    "k_requested": k,
-                    "k_found": 0,
-                    "metric": metric,
-                    "user_genre": user_upload.genre if user_upload else None,
-                    "retrieved_tracks": [],
-                }
+                return (
+                    [],
+                    user_upload,
+                    {
+                        "user_upload_id": user_upload_id,
+                        "k_requested": k,
+                        "k_found": 0,
+                        "metric": metric,
+                        "user_genre": user_upload.genre if user_upload else None,
+                        "retrieved_tracks": [],
+                    },
+                )
 
             # Build results from similar tracks (which already have training examples)
             results = []
@@ -176,7 +182,7 @@ class AudioRAG:
             # Add similarity scores for debugging
             for i, result in enumerate(results):
                 result["similarity_rank"] = i + 1
-            
+
             # This will be captured in the trace output
             return results, user_upload, retrieval_summary
 
@@ -186,23 +192,25 @@ class AudioRAG:
         finally:
             session.close()
 
-    def create_feature_comparison(self, input_features: Dict, ref_features: Dict) -> str:
+    def create_feature_comparison(
+        self, input_features: Dict, ref_features: Dict
+    ) -> str:
         """
         Create a comparative analysis between input and reference track features
         """
         if not input_features or not ref_features:
             return "Feature comparison not available - missing feature data."
-        
+
         comparison = "## Analysis Against Your Reference Track:\n\n"
-        
+
         # Helper function to describe differences
         def describe_diff(input_val, ref_val, metric_name, unit=""):
             if input_val is None or ref_val is None:
                 return f"  - {metric_name}: Data not available\n"
-            
+
             diff = input_val - ref_val
             diff_pct = (diff / ref_val * 100) if ref_val != 0 else 0
-            
+
             if abs(diff_pct) < 10:  # Less than 10% difference
                 return f"  - {metric_name}: Very similar ({input_val:.2f}{unit} vs {ref_val:.2f}{unit})\n"
             elif diff > 0:
@@ -211,51 +219,98 @@ class AudioRAG:
             else:
                 magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
                 return f"  - {metric_name}: Your track is {magnitude} lower ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, {diff_pct:.0f}%)\n"
-        
+
         # Rhythm comparison
         rhythm_input = input_features.get("rhythm", {})
         rhythm_ref = ref_features.get("rhythm", {})
-        
+
         if rhythm_input and rhythm_ref:
             comparison += "**Rhythmic Character:**\n"
-            comparison += describe_diff(rhythm_input.get("tempo"), rhythm_ref.get("tempo"), "Tempo", " BPM")
-            comparison += describe_diff(rhythm_input.get("onset_density"), rhythm_ref.get("onset_density"), "Rhythmic Activity", " events/sec")
-            comparison += describe_diff(rhythm_input.get("beat_strength"), rhythm_ref.get("beat_strength"), "Beat Presence", "")
+            comparison += describe_diff(
+                rhythm_input.get("tempo"), rhythm_ref.get("tempo"), "Tempo", " BPM"
+            )
+            comparison += describe_diff(
+                rhythm_input.get("onset_density"),
+                rhythm_ref.get("onset_density"),
+                "Rhythmic Activity",
+                " events/sec",
+            )
+            comparison += describe_diff(
+                rhythm_input.get("beat_strength"),
+                rhythm_ref.get("beat_strength"),
+                "Beat Presence",
+                "",
+            )
             comparison += "\n"
-        
-        # Energy comparison  
+
+        # Energy comparison
         energy_input = input_features.get("energy", {})
         energy_ref = ref_features.get("energy", {})
-        
+
         if energy_input and energy_ref:
             comparison += "**Energy Profile:**\n"
-            comparison += describe_diff(energy_input.get("dynamic_range"), energy_ref.get("dynamic_range"), "Dynamic Range", "")
-            comparison += describe_diff(energy_input.get("average_energy"), energy_ref.get("average_energy"), "Overall Intensity", "")
-            comparison += describe_diff(energy_input.get("peak_density"), energy_ref.get("peak_density"), "Energy Peaks", " /sec")
+            comparison += describe_diff(
+                energy_input.get("dynamic_range"),
+                energy_ref.get("dynamic_range"),
+                "Dynamic Range",
+                "",
+            )
+            comparison += describe_diff(
+                energy_input.get("average_energy"),
+                energy_ref.get("average_energy"),
+                "Overall Intensity",
+                "",
+            )
+            comparison += describe_diff(
+                energy_input.get("peak_density"),
+                energy_ref.get("peak_density"),
+                "Energy Peaks",
+                " /sec",
+            )
             comparison += "\n"
-        
+
         # Frequency/EQ comparison
         freq_input = input_features.get("frequency", {})
         freq_ref = ref_features.get("frequency", {})
-        
+
         if freq_input and freq_ref:
             comparison += "**Frequency Distribution:**\n"
-            comparison += describe_diff(freq_input.get("low_proportion"), freq_ref.get("low_proportion"), "Bass Content", "%")
-            comparison += describe_diff(freq_input.get("mid_proportion"), freq_ref.get("mid_proportion"), "Midrange Content", "%")
-            comparison += describe_diff(freq_input.get("high_proportion"), freq_ref.get("high_proportion"), "Treble Content", "%")
+            comparison += describe_diff(
+                freq_input.get("low_proportion"),
+                freq_ref.get("low_proportion"),
+                "Bass Content",
+                "%",
+            )
+            comparison += describe_diff(
+                freq_input.get("mid_proportion"),
+                freq_ref.get("mid_proportion"),
+                "Midrange Content",
+                "%",
+            )
+            comparison += describe_diff(
+                freq_input.get("high_proportion"),
+                freq_ref.get("high_proportion"),
+                "Treble Content",
+                "%",
+            )
             comparison += "\n"
-        
+
         # Spectral comparison
         spectral_input = input_features.get("spectral", {})
         spectral_ref = ref_features.get("spectral", {})
-        
+
         if spectral_input and spectral_ref:
             comparison += "**Tonal Character:**\n"
-            comparison += describe_diff(spectral_input.get("avg_brightness"), spectral_ref.get("avg_brightness"), "Overall Brightness", " Hz")
+            comparison += describe_diff(
+                spectral_input.get("avg_brightness"),
+                spectral_ref.get("avg_brightness"),
+                "Overall Brightness",
+                " Hz",
+            )
             comparison += "\n"
-        
+
         comparison += "This analysis describes the measurable differences between your input track and reference track to provide context for the feedback below.\n\n"
-        
+
         return comparison
 
     @traceable
@@ -272,10 +327,24 @@ class AudioRAG:
         # Get input and reference track arrangement patterns
         session = self.db.get_session()
         try:
-            input_track = session.query(Track).filter(Track.id == user_upload.input_track_id).first()
-            reference_track = session.query(Track).filter(Track.id == user_upload.reference_track_id).first()
-            input_arrangement = input_track.smoothed_arrangement_pattern if input_track else "Unknown"
-            reference_arrangement = reference_track.smoothed_arrangement_pattern if reference_track else "Unknown"
+            input_track = (
+                session.query(Track)
+                .filter(Track.id == user_upload.input_track_id)
+                .first()
+            )
+            reference_track = (
+                session.query(Track)
+                .filter(Track.id == user_upload.reference_track_id)
+                .first()
+            )
+            input_arrangement = (
+                input_track.smoothed_arrangement_pattern if input_track else "Unknown"
+            )
+            reference_arrangement = (
+                reference_track.smoothed_arrangement_pattern
+                if reference_track
+                else "Unknown"
+            )
         finally:
             session.close()
 
@@ -436,10 +505,12 @@ class AudioRAG:
             retrieval_warning = "⚠️ **No Training Examples Found**: No similar tracks found in database. Feedback will be very general.\n\n"
         elif len(similar_examples) < 3:
             retrieval_warning = f"⚠️ **Limited Training Data**: Only found {len(similar_examples)} similar examples. Feedback quality may be limited.\n\n"
-        
+
         # Add debug info
         if similar_examples:
-            total_feedback_items = sum(len(ex.get("feedback", [])) for ex in similar_examples)
+            total_feedback_items = sum(
+                len(ex.get("feedback", [])) for ex in similar_examples
+            )
             retrieval_warning += f"📊 **Debug Info**: Retrieved {len(similar_examples)} examples with {total_feedback_items} feedback items\n\n"
 
         # Format examples for prompt
@@ -450,24 +521,54 @@ class AudioRAG:
         # Get input and reference track data for the prompt
         session = self.db.get_session()
         try:
-            input_track = session.query(Track).filter(Track.id == user_upload.input_track_id).first()
-            reference_track = session.query(Track).filter(Track.id == user_upload.reference_track_id).first()
-            input_pattern = input_track.smoothed_arrangement_pattern if input_track and hasattr(input_track, 'smoothed_arrangement_pattern') and input_track.smoothed_arrangement_pattern else "Unknown"
-            reference_pattern = reference_track.smoothed_arrangement_pattern if reference_track and hasattr(reference_track, 'smoothed_arrangement_pattern') and reference_track.smoothed_arrangement_pattern else "Unknown"
-            
+            input_track = (
+                session.query(Track)
+                .filter(Track.id == user_upload.input_track_id)
+                .first()
+            )
+            reference_track = (
+                session.query(Track)
+                .filter(Track.id == user_upload.reference_track_id)
+                .first()
+            )
+            input_pattern = (
+                input_track.smoothed_arrangement_pattern
+                if input_track
+                and hasattr(input_track, "smoothed_arrangement_pattern")
+                and input_track.smoothed_arrangement_pattern
+                else "Unknown"
+            )
+            reference_pattern = (
+                reference_track.smoothed_arrangement_pattern
+                if reference_track
+                and hasattr(reference_track, "smoothed_arrangement_pattern")
+                and reference_track.smoothed_arrangement_pattern
+                else "Unknown"
+            )
+
             # Get global features for comparison
-            input_features = input_track.global_feature_data if input_track and input_track.global_feature_data else {}
-            ref_features = reference_track.global_feature_data if reference_track and reference_track.global_feature_data else {}
-            
+            input_features = (
+                input_track.global_feature_data
+                if input_track and input_track.global_feature_data
+                else {}
+            )
+            ref_features = (
+                reference_track.global_feature_data
+                if reference_track and reference_track.global_feature_data
+                else {}
+            )
+
             print(f"DEBUG: Input features available: {bool(input_features)}")
             print(f"DEBUG: Ref features available: {bool(ref_features)}")
             if input_features:
                 print(f"DEBUG: Input feature keys: {list(input_features.keys())}")
             if ref_features:
                 print(f"DEBUG: Ref feature keys: {list(ref_features.keys())}")
-            
+
             # Create feature comparison
-            feature_comparison = self.create_feature_comparison(input_features, ref_features)
+            feature_comparison = self.create_feature_comparison(
+                input_features, ref_features
+            )
             print(f"DEBUG: Feature comparison length: {len(feature_comparison)} chars")
         finally:
             session.close()

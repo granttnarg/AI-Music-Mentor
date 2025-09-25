@@ -140,7 +140,9 @@ def show_browse_edit_tab():
                         st.markdown("**Input Track Pattern:**")
                         input_track = example["input_track"]
                         if input_track.get("smoothed_arrangement_pattern"):
-                            st.markdown(f"`{input_track['smoothed_arrangement_pattern']}`")
+                            st.markdown(
+                                f"`{input_track['smoothed_arrangement_pattern']}`"
+                            )
                         else:
                             st.info("No pattern available")
 
@@ -148,31 +150,46 @@ def show_browse_edit_tab():
                         st.markdown("**Reference Track Pattern:**")
                         ref_track = example["reference_track"]
                         if ref_track.get("smoothed_arrangement_pattern"):
-                            st.markdown(f"`{ref_track['smoothed_arrangement_pattern']}`")
+                            st.markdown(
+                                f"`{ref_track['smoothed_arrangement_pattern']}`"
+                            )
                         else:
                             st.info("No pattern available")
 
                     # Button to load visualizations
-                    if st.button(f"🎵 Load Waveform Visualizations", key=f"load_viz_{example['id']}"):
+                    if st.button(
+                        f"🎵 Load Waveform Visualizations",
+                        key=f"load_viz_{example['id']}",
+                    ):
                         with st.spinner("Loading waveform visualizations..."):
                             # Create two columns for input and reference visualizations
                             viz_col1, viz_col2 = st.columns(2)
 
                             with viz_col1:
                                 st.markdown("**Input Track Visualization:**")
-                                if input_track.get("raw_predictions") and input_track.get("raw_confidence_scores"):
+                                if input_track.get(
+                                    "raw_predictions"
+                                ) and input_track.get("raw_confidence_scores"):
                                     try:
-                                        from src.classifier.arrangement_postprocessing import process_arrangement_predictions
+                                        from src.classifier.arrangement_postprocessing import (
+                                            process_arrangement_predictions,
+                                        )
 
-                                        raw_predictions = json.loads(input_track["raw_predictions"])
-                                        confidence_scores = json.loads(input_track["raw_confidence_scores"])
+                                        raw_predictions = json.loads(
+                                            input_track["raw_predictions"]
+                                        )
+                                        confidence_scores = json.loads(
+                                            input_track["raw_confidence_scores"]
+                                        )
 
-                                        blocks, analysis = process_arrangement_predictions(
-                                            np.array(raw_predictions),
-                                            np.array(confidence_scores),
-                                            ['O', 'A', 'B', 'C'],
-                                            min_segment_length=2,
-                                            confidence_threshold=0.4
+                                        blocks, analysis = (
+                                            process_arrangement_predictions(
+                                                np.array(raw_predictions),
+                                                np.array(confidence_scores),
+                                                ["O", "A", "B", "C"],
+                                                min_segment_length=2,
+                                                confidence_threshold=0.4,
+                                            )
                                         )
 
                                         # Use cached visualization
@@ -181,35 +198,51 @@ def show_browse_edit_tab():
                                             track_id=input_track["id"],
                                             audio_path=input_track["file_path"],
                                             arrangement_blocks=blocks,
-                                            title=f"Input: {Path(input_track['file_path']).name}"
+                                            title=f"Input: {Path(input_track['file_path']).name}",
                                         )
 
                                         # Display cached image
                                         if Path(cache_path).exists():
-                                            st.image(cache_path, use_container_width=True)
+                                            st.image(
+                                                cache_path, use_container_width=True
+                                            )
                                         else:
                                             st.error("Failed to generate visualization")
 
                                     except Exception as e:
-                                        st.error(f"Error generating input visualization: {e}")
+                                        st.error(
+                                            f"Error generating input visualization: {e}"
+                                        )
                                 else:
-                                    st.info("No arrangement data available for visualization")
+                                    st.info(
+                                        "No arrangement data available for visualization"
+                                    )
 
                             with viz_col2:
                                 st.markdown("**Reference Track Visualization:**")
-                                if ref_track.get("raw_predictions") and ref_track.get("raw_confidence_scores"):
+                                if ref_track.get("raw_predictions") and ref_track.get(
+                                    "raw_confidence_scores"
+                                ):
                                     try:
-                                        from src.classifier.arrangement_postprocessing import process_arrangement_predictions
+                                        from src.classifier.arrangement_postprocessing import (
+                                            process_arrangement_predictions,
+                                        )
 
-                                        raw_predictions = json.loads(ref_track["raw_predictions"])
-                                        confidence_scores = json.loads(ref_track["raw_confidence_scores"])
+                                        raw_predictions = json.loads(
+                                            ref_track["raw_predictions"]
+                                        )
+                                        confidence_scores = json.loads(
+                                            ref_track["raw_confidence_scores"]
+                                        )
 
-                                        blocks, analysis = process_arrangement_predictions(
-                                            np.array(raw_predictions),
-                                            np.array(confidence_scores),
-                                            ['O', 'A', 'B', 'C'],
-                                            min_segment_length=2,
-                                            confidence_threshold=0.4
+                                        blocks, analysis = (
+                                            process_arrangement_predictions(
+                                                np.array(raw_predictions),
+                                                np.array(confidence_scores),
+                                                ["O", "A", "B", "C"],
+                                                min_segment_length=2,
+                                                confidence_threshold=0.4,
+                                            )
                                         )
 
                                         # Use cached visualization
@@ -218,19 +251,25 @@ def show_browse_edit_tab():
                                             track_id=ref_track["id"],
                                             audio_path=ref_track["file_path"],
                                             arrangement_blocks=blocks,
-                                            title=f"Reference: {Path(ref_track['file_path']).name}"
+                                            title=f"Reference: {Path(ref_track['file_path']).name}",
                                         )
 
                                         # Display cached image
                                         if Path(cache_path).exists():
-                                            st.image(cache_path, use_container_width=True)
+                                            st.image(
+                                                cache_path, use_container_width=True
+                                            )
                                         else:
                                             st.error("Failed to generate visualization")
 
                                     except Exception as e:
-                                        st.error(f"Error generating reference visualization: {e}")
+                                        st.error(
+                                            f"Error generating reference visualization: {e}"
+                                        )
                                 else:
-                                    st.info("No arrangement data available for visualization")
+                                    st.info(
+                                        "No arrangement data available for visualization"
+                                    )
 
                     # Edit functionality
                     st.markdown("**Edit Training Example:**")
@@ -265,7 +304,7 @@ def show_browse_edit_tab():
                     feedback_types = [
                         "general",
                         "rhythm",
-                        "arrangement", 
+                        "arrangement",
                         "eq",
                         "problem-solution",
                     ]

@@ -29,7 +29,9 @@ class Track(Base):
 
     # Visualization cache paths (stored in visualizations/ folder)
     waveform_viz_path = Column(String, nullable=True)  # Path to cached waveform PNG
-    viz_generated_at = Column(DateTime, nullable=True)  # When visualizations were generated
+    viz_generated_at = Column(
+        DateTime, nullable=True
+    )  # When visualizations were generated
 
     created_at = Column(DateTime, default=datetime.now)
 

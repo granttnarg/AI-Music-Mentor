@@ -9,7 +9,14 @@ st.set_page_config(page_title="RAG Database Admin", layout="wide")
 st.title("RAG Database Admin")
 
 # Create tabs
-tab1, tab2, tab3, tab4 = st.tabs(["📤 Add New Training Example", "📋 Browse & Edit Examples", "📊 Evaluation Tracker", "🎯 3D Similarity Viz"])
+tab1, tab2, tab3, tab4 = st.tabs(
+    [
+        "📤 Add New Training Example",
+        "📋 Browse & Edit Examples",
+        "📊 Evaluation Tracker",
+        "🎯 3D Similarity Viz",
+    ]
+)
 
 with tab1:
     show_add_new_tab()
