@@ -15,6 +15,9 @@ __pycache__/
 #for our audio uploads
 data/uploads/session_*/*.json
 
+# Generated visualizations (cached PNGs)
+visualizations/
+
 # Models (if large)
 models/*.pkl
 models/*.bin
@@ -32,3 +35,9 @@ logs/*.log
 
 # still work in progress
 notebooks/4class-final-notebook-DONT-COMMIT.ipynb
+
+# backup data for our training examples
+data/backups/
+!data/backups/.gitkeep
+
+evaluations/*.json
