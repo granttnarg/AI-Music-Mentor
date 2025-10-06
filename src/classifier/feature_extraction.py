@@ -220,87 +220,27 @@ class AudioFeature:
 
     def _create_meter_grid(self, target_segment_seconds=5) -> np.ndarray:
         """
-        Helper function to create a meter grid for the song with longer segments.
+        Create a simple grid with fixed 5-second segments to match training data.
         """
-        # Convert tempo to scalar if it's an array
-        tempo = float(self.tempo) if hasattr(self.tempo, "__len__") else self.tempo
-
-        seconds_per_beat = 60 / tempo
-
-        # Calculate how many beats we need for target segment length
-        beats_per_segment = target_segment_seconds / seconds_per_beat
-
-        # Convert to scalar and round
-        beats_per_segment = (
-            float(beats_per_segment)
-            if hasattr(beats_per_segment, "__len__")
-            else beats_per_segment
-        )
-
-        # Round to nearest multiple of time_signature for musical alignment
-        beats_per_segment = max(
-            self.time_signature,
-            round(beats_per_segment / self.time_signature) * self.time_signature,
-        )
-
-        beat_interval = int(
-            librosa.time_to_frames(
-                seconds_per_beat, sr=self.sr, hop_length=self.hop_length
-            )
-        )
-
-        # Find best matching start beat
-        if len(self.beats) >= 3:
-            best_match = max(
-                (
-                    1
-                    - abs(np.mean(self.beats[i : i + 3]) - beat_interval)
-                    / beat_interval,
-                    self.beats[i],
-                )
-                for i in range(len(self.beats) - 2)
-            )[1]
-            anchor_frame = best_match if best_match > 0.95 else self.beats[0]
-        else:
-            anchor_frame = self.beats[0] if len(self.beats) > 0 else 0
-
-        first_beat_time = librosa.frames_to_time(
-            anchor_frame, sr=self.sr, hop_length=self.hop_length
-        )
-
-        # Calculate segment duration (in seconds)
-        segment_duration = beats_per_segment * seconds_per_beat
-
-        # Calculate segment times forward and backward
         time_duration = librosa.frames_to_time(
             self.n_frames, sr=self.sr, hop_length=self.hop_length
         )
-        segment_times_forward = np.arange(
-            first_beat_time, time_duration, segment_duration
-        )
-        segment_times_backward = np.arange(
-            first_beat_time - segment_duration, -segment_duration, -segment_duration
-        )
 
-        # Create segment grid in both directions
-        segment_grid = np.concatenate(
-            (np.array([0.0]), segment_times_backward[::-1], segment_times_forward)
+        # Create simple 5-second segments starting from 0
+        segment_times = np.arange(
+            0, time_duration + target_segment_seconds, target_segment_seconds
         )
 
-        # Remove duplicates and sort
-        segment_grid = np.unique(segment_grid)
-        segment_grid.sort()
+        # Ensure we don't go beyond the actual audio duration
+        segment_times = segment_times[segment_times <= time_duration]
 
-        # Ensure grid starts at 0 and ends at track duration
-        if segment_grid[0] != 0.0:
-            segment_grid = np.insert(segment_grid, 0, 0.0)
-
-        if segment_grid[-1] < time_duration:
-            segment_grid = np.append(segment_grid, time_duration)
+        # Always end exactly at the audio duration
+        if segment_times[-1] < time_duration:
+            segment_times = np.append(segment_times, time_duration)
 
         # Convert to frames
         meter_grid_frames = librosa.time_to_frames(
-            segment_grid, sr=self.sr, hop_length=self.hop_length
+            segment_times, sr=self.sr, hop_length=self.hop_length
         )
 
         # Ensure final frame is included
@@ -308,6 +248,11 @@ class AudioFeature:
             meter_grid_frames[-1] = self.n_frames
 
         print(f"Created meter grid with {len(meter_grid_frames)-1} segments")
+        print(f"Audio duration: {time_duration:.1f}s")
+        print(f"Expected segments (~5s each): {time_duration/5:.1f}")
+        print(f"Actual segments created: {len(meter_grid_frames)-1}")
+        print(f"Segment duration target: {target_segment_seconds:.1f}s")
+
         segment_lengths = np.diff(
             librosa.frames_to_time(
                 meter_grid_frames, sr=self.sr, hop_length=self.hop_length
@@ -316,6 +261,13 @@ class AudioFeature:
         print(
             f"Segment lengths: min={segment_lengths.min():.1f}s, max={segment_lengths.max():.1f}s, mean={segment_lengths.mean():.1f}s"
         )
+
+        # Debug the actual segment times
+        segment_times = librosa.frames_to_time(
+            meter_grid_frames, sr=self.sr, hop_length=self.hop_length
+        )
+        print(f"First 5 segment boundaries: {segment_times[:5]}")
+        print(f"Last 5 segment boundaries: {segment_times[-5:]}")
 
         return meter_grid_frames
 

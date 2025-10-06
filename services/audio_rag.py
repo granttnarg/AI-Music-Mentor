@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from db.operations import AudioRAGOperations
 from db.db import AudioRAGDatabase
 from db.models import TrainingExample, Track, UserUpload, Feedback
@@ -14,7 +14,7 @@ from langsmith import traceable
 
 
 class AudioRAG:
-    def __init__(self, db: AudioRAGDatabase, llm_model: str = "llama3.2:latest"):
+    def __init__(self, db: AudioRAGDatabase, llm_model: str = "qwen3:8b"):
         self.db = db
         self.operations = AudioRAGOperations(db)
         self.llm_model = llm_model
@@ -25,14 +25,14 @@ class AudioRAG:
         self.prompt = self.create_prompt_template()
         self.output_parser = StrOutputParser()
         self.llm = ChatOllama(
-            model=llm_model, temperature=0.5, base_url="http://localhost:11434"
+            model=llm_model, temperature=0.4, base_url="http://localhost:11434"
         )
         self.chain = self.prompt | self.llm | self.output_parser
 
     @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
         self, user_upload_id: int, k: int = 5, metric: str = "cosine"
-    ) -> List[Dict[str, Any]]:
+    ) -> Tuple[List[Dict[str, Any]], Any, Dict[str, Any]]:
         """
         Retrieve top-k most similar training examples for a given user upload
 
@@ -313,9 +313,109 @@ class AudioRAG:
 
         return comparison
 
+    def rank_feedback_by_relevance(
+        self, feedback_items: List[Dict], user_question: str, user_genre: str
+    ) -> List[Dict]:
+        """
+        Use a small LLM to rank feedback items by relevance to user question
+        Returns top-ranked feedback pieces
+        """
+        if not feedback_items or len(feedback_items) <= 2:
+            return feedback_items  # If we have 2 or fewer, use all
+
+        try:
+            # Initialize small, fast model for ranking
+            ranking_llm = ChatOllama(
+                model="llama3.2:latest",  # Use available model for ranking
+                temperature=0.0,  # Zero temperature for consistent scoring
+            )
+
+            scored_feedback = []
+
+            for feedback in feedback_items:
+                feedback_text = feedback.get("text", "")
+                feedback_type = feedback.get("type", "general")
+
+                # Create ranking prompt
+                ranking_prompt = f"""Rate how relevant this feedback is to the user's question. Use the full 1-10 scale:
+
+                User Question: "{user_question}"
+                User Genre: {user_genre} 
+                Feedback Type: {feedback_type}
+                Feedback Text: "{feedback_text}"
+
+                Scoring guidelines:
+                - 1-3: Completely unrelated to the question (wrong topic entirely)
+                - 4-6: Somewhat related but doesn't directly address the question  
+                - 7-9: Directly addresses the question and would help solve the problem
+                - 10: Perfect match - exactly what the user needs
+
+                Be decisive. Don't default to middle scores. If this feedback doesn't directly solve their specific problem, score it low.
+
+                Score (1-10):"""
+
+                try:
+                    print(f"\nDEBUG: Scoring feedback: '{feedback_text[:60]}...'")
+                    print(f"DEBUG: Feedback type: {feedback_type}")
+                    print(f"DEBUG: User question: '{user_question[:60]}...'")
+
+                    # Get relevance score from small LLM
+                    response = ranking_llm.invoke(ranking_prompt)
+                    score_text = response.content.strip()
+                    print(f"DEBUG: Raw LLM response: '{score_text}'")
+
+                    # Extract numeric score
+                    import re
+
+                    score_match = re.search(r"\b([1-9]|10)\b", score_text)
+                    score = (
+                        int(score_match.group(1)) if score_match else 5
+                    )  # Default to 5 if parsing fails
+
+                    print(f"DEBUG: Extracted score: {score}")
+
+                    scored_feedback.append({"feedback": feedback, "score": score})
+
+                except Exception as e:
+                    print(f"ERROR: Failed to score feedback: {e}")
+                    print(f"DEBUG: Feedback text was: '{feedback_text}'")
+                    # Fallback: give average score
+                    scored_feedback.append({"feedback": feedback, "score": 5})
+
+            # Sort by score and return top pieces
+            scored_feedback.sort(key=lambda x: x["score"], reverse=True)
+            top_feedback = [
+                item["feedback"] for item in scored_feedback[:2]
+            ]  # Top 2 most relevant
+
+            print(
+                f"\n🎯 RANKING RESULTS: Scored {len(feedback_items)} feedback pieces, selected top {len(top_feedback)}"
+            )
+            print("=" * 80)
+            for i, item in enumerate(scored_feedback):  # Show ALL scores for debugging
+                feedback_text = item["feedback"].get("text", "No text")[:70]
+                feedback_type = item["feedback"].get("type", "General")
+                selected = "✅ SELECTED" if i < 2 else "❌ rejected"
+                print(
+                    f"#{i+1:2d} | Score: {item['score']:2d} | {selected} | Type: {feedback_type}"
+                )
+                print(f"     | Text: {feedback_text}...")
+                print(f"     |")
+            print("=" * 80)
+
+            return top_feedback
+
+        except Exception as e:
+            print(f"ERROR: Feedback ranking failed: {e}")
+            # Fallback to first 2 feedback pieces
+            return feedback_items[:2]
+
     @traceable
     def format_examples_for_prompt(
-        self, similar_examples: List[Dict[str, Any]], user_upload: UserUpload
+        self,
+        similar_examples: List[Dict[str, Any]],
+        user_upload: UserUpload,
+        question: str = "",
     ) -> str:
         """
         Format retrieved similar examples into a structured string for the prompt
@@ -355,32 +455,51 @@ class AudioRAG:
         context += f"  Genre: {user_upload.genre}\n"
         context += f"  Input Track Structure: {input_arrangement}\n"
         context += f"  Reference Track Structure: {reference_arrangement}\n\n"
-        context += "Similar Examples:\n\n"
+        # Collect ALL feedback pieces from all similar examples for ranking
+        all_feedback = []
+        for example in similar_examples:
+            feedback_items = example.get("feedback", [])
+            for feedback in feedback_items:
+                # Add context about which example this feedback came from
+                feedback_with_context = feedback.copy()
+                feedback_with_context["source_example"] = example
+                all_feedback.append(feedback_with_context)
+
+        # Rank feedback by relevance using small LLM
+        user_question = (
+            question
+            if question.strip()
+            else (
+                getattr(user_upload, "user_prompt_notes", "general feedback")
+                or "general feedback"
+            )
+        )
+        user_genre = getattr(user_upload, "genre", "electronic")
+
+        print(f"DEBUG: Ranking {len(all_feedback)} total feedback pieces...")
+        ranked_feedback = self.rank_feedback_by_relevance(
+            all_feedback, user_question, user_genre
+        )
+
+        context += (
+            f"Most Relevant Feedback (from {len(similar_examples)} similar tracks):\n\n"
+        )
 
         formatted_examples = []
+        # Format only the top-ranked feedback pieces
+        for i, feedback in enumerate(ranked_feedback, 1):
+            source_example = feedback.get("source_example", {})
+            example_track = source_example.get("example_track", {})
 
-        for i, example in enumerate(similar_examples, 1):
-            example_text = f"Example {i}:"
+            feedback_text = f"Relevant Example {i}:"
+            feedback_text += f"\n  Source Track: {os.path.basename(example_track.get('file_path', 'Unknown'))}"
+            feedback_text += (
+                f"\n  Structure: {example_track.get('arrangement_pattern', 'Unknown')}"
+            )
+            feedback_text += f"\n  Feedback Type: {feedback.get('type', 'General')}"
+            feedback_text += f"\n  Advice: {feedback.get('text', 'No text')}"
 
-            # Add basic example track info
-            example_track = example.get("example_track", {})
-            reference_track = example.get("reference_track", {})
-            example_text += f"\n  Input Track: {os.path.basename(example_track.get('file_path', 'Unknown'))}"
-            example_text += f"\n  Input Structure: {example_track.get('arrangement_pattern', 'Unknown')}"
-            if reference_track:
-                example_text += f"\n  Reference Structure: {reference_track.get('arrangement_pattern', 'Unknown')}"
-            example_text += f"\n  Duration: {example_track.get('duration', 'Unknown')}s"
-
-            # Add feedback - this is the main learning content
-            feedback_items = example.get("feedback", [])
-            if feedback_items:
-                example_text += "\n  Feedback:"
-                for feedback in feedback_items:
-                    example_text += f"\n    - {feedback.get('type', 'General')}: {feedback.get('text', 'No text')}"
-            else:
-                example_text += "\n  Feedback: No feedback available"
-
-            formatted_examples.append(example_text)
+            formatted_examples.append(feedback_text)
 
         context += "\n\n".join(formatted_examples)
 
@@ -396,80 +515,124 @@ class AudioRAG:
         """
         Create a LangChain prompt template for music feedback generation
         """
-        template = """You are an AI music mentor providing feedback on audio tracks.
+        template = """You are an AI music mentor and professional music producer. Your tone is supportive, casual, humourous and constructive.
 
-        ARRANGEMENT STRUCTURE NOTATION:
-        The tracks use this structure pattern notation:
-        - O = Outro/Intro sections (often striped down loops that are simple)
-        - A = Verse/Medium energy groove sections (core groove content, they usually lead together a B section or help set the drum groove for the track)
-        - B = Chorus/High energy sections (high energy, memorable parts often with more mid frequency content)
-        - C = Breakdown sections (transitional or stripped-down ambients parts with no or little drum content)
+                Primary goal: Help the user overcome writer's block by providing exactly 2 concrete, actionable suggestions that move their track forward. You are not trying to complete their track or provide a comprehensive roadmap - just give them the 2 most impactful, specific ideas to break through their current sticking point and continue creating. Keep feedback focused and digestible.
 
-        CRITICAL: PAY ATTENTION TO THE USER'S CURRENT TRACK STRUCTURE
-        The user's track currently has this arrangement pattern: {input_pattern}
-        The reference track they're aiming for has: {reference_pattern}
+                The reference track serves as a directional guide, NOT a rigid template. The goal is to move the input track in that musical direction while respecting the track's current state and ensuring all changes make musical sense for where the track currently is.
 
-        ARRANGEMENT FEEDBACK RULES:
-        1. ONLY suggest improvements based on sections that currently exist in their track
-        2. DO NOT suggest adding sections that already exist in the user's pattern: {input_pattern}
-        3. DO NOT suggest section sequences that already exist (e.g., if pattern has "A-B", don't suggest "add B after A")
-        4. When suggesting new sections, be explicit: "You could add a higher energy A section after your current O loop" 
-        5. Reference the user's current pattern specifically: "Your track is currently just an O section, which works as a foundation..."
-        6. When mentioning sections from examples or reference tracks, always clarify: "Like in your reference track's B section" or "The A section in this example shows..."
-        7. NEVER assume sections exist that aren't in the input pattern
-        8. Check the pattern {input_pattern} before making any arrangement suggestions
+                Track Section Definitions - USE THESE EXACT TERMS:
+                - O = Intro/Outro sections: simple loops, often stripped-down rhythmic loops, setting the foundation for DJ mixing
+                - A = Groove sections: medium energy core groove content with steady rhythmic patterns, usually leading into B sections and keeping the track moving forward
+                - B = Main Hook sections: high-energy memorable groove sections with prominent melodies, catchy rhythmic motifs, or increased mid-frequency content
+                - C = Breakdown sections: transitional or ambient parts with minimal or no drums, often used for emotional peaks or breaks from the main groove
 
-        You have access to training examples showing how other tracks were improved. Each example contains:
-        - An INPUT TRACK (unfinished, like the user's track)
-        - A REFERENCE TRACK (finished version)  
-        - FEEDBACK explaining how to get from input to reference in the tone of one specific producer.
+                PATTERN INTERPRETATION:
+                - If input track pattern is "O": Track contains ONLY intro/outro material. No A, B, or C sections exist yet.
+                - If input track pattern is "A": Track contains ONLY groove material. No B or C sections exist yet.
+                - If input track pattern is "O-A": Track has intro/outro material followed by groove material. No B or C sections exist yet.
+                - Only suggest adding sections that don't already exist, never extending or modifying sections that aren't there.
 
-        {feature_comparison}
+                CRITICAL: Always use these exact section names
+                - Use full section names with optional letter clarification: "Groove sections (A)", "Main Hook sections (B)", etc.
+                - Acceptable: "your 2nd Groove section", "the first Main Hook section (B)", "Breakdown sections (C)", "trim the last Main Hook section by 4 chunks"
+                - Not acceptable: "B sections", "A sections", "the B", "your A section"
 
-        Here are the relevant training examples:
+                Arrangement Guidance:
+                Always use the reference track's structure as your primary guide when analyzing or suggesting an arrangement.
 
-        {examples}
+                You may also reference the common techno track patterns below, as they represent popular and functional choices for engaging the dancefloor.
 
-        CRITICAL PATTERN RULES - FOLLOW EXACTLY:
-        - User's current track pattern: {input_pattern}
-        - Reference track pattern: {reference_pattern}
-        - ONLY reference sections that actually exist in these patterns
-        - DO NOT mention sections (A, B, C, O) that are not in the user's pattern
-        - DO NOT invent arrangement details not provided in the training examples
-        - If the user has pattern "O", only discuss the O section and potential additions
-        - If suggesting new sections, be explicit: "You could add an A section after your O loop"
+                When referencing these patterns, explain why they work (e.g., how tension builds, how breakdowns add contrast, how O sections aid DJ mixing).
 
-        CRITICAL INSTRUCTIONS:
-        - The user has uploaded a {stage} track 
-        - Their current track structure is: {input_pattern}
-        - You do NOT know what specific elements are already in the user's track beyond its arrangement structure
-        - Use ONLY the feedback patterns from the training examples - do not add generic music production advice
-        - Frame suggestions as "you could try..." or "consider adding..." rather than "your track has..." or "change your..."
-        - Base all advice on the provided training examples, not general music knowledge
+                Techno Tracks typically start and end with an O or A section: a stripped groove that DJs can easily mix in and out.
 
-        User's Question: {question}
-        User's Track Context: {stage} track with pattern {input_pattern} needing arrangement help
+                B sections work best after A (gradual build into a drop) or C (impactful re-entry after a breakdown).
 
-        Start your response with a descriptive statement about the user's input track. Use the feature comparison data above and the genre information to create 2-3 sentences describing the track's current character, style, and sonic profile. This sets the context for your feedback.
+                Common Techno Track Patterns:
+                - O–A–B–C–B–A–O → Builds to high energy, drops into a memorable breakdown, then re-energizes before winding down. "Orbital – Chime" is a great example of this, ending with the chorus and short outro.
+                - O–A–B–C–A–B–O → Builds to high energy, uses an emotive breakdown, recalls the chorus energy near the end. "Laurent Garnier – The Man With The Red Face" a perfect example of this big build emotive breakdown gradually building back to the chorus.
+                - O–A–A–B–B–A–O → Gradual climb to a strong mid-track peak, then a taper down; best with hypnotic grooves where breakdowns may interrupt flow. - "Robert Hood - Rhythm of vision" is good example of this style of building track.
+                - O–A–B–A–B–A–B–O → Alternates between medium and high energy, playing with tension over a long, dynamic journey. "Jeff Mills - The Bells" is a good example of this structure.
 
-        Then provide targeted feedback. Analyze the user's question to determine what type of feedback they need most:
-        - If they ask about structure, arrangement, or song flow → focus on ARRANGEMENT
-        - If they ask about drums, rhythm, or groove → focus on RHYTHM  
-        - If they ask about energy, power, or dynamics → focus on ENERGY
-        - If they ask about EQ, mix, or sound → focus on MIXING/EQ
-        - If their question is general → provide 1-2 most relevant categories
+                If it makes sense for your arrangement advice, you may mention only 1 of the classic techno tracks by artist and name from the common techno patterns above, suggesting the user checks out that track for more inspiration.
 
-        Provide targeted feedback based on their specific question, keeping in mind the feature differences between the input and reference tracks. Use clear headers for the relevant categories:
+                Input:
+                - User track stage/state: {stage} (sketch, half-finished, almost finished)
+                - Genre: {genre}
+                - Input track features: {input_features} (use this to describe the track's current characteristics and identify potential problems)
+                - Reference track features: {ref_features}
+                - Feature comparison analysis: {feature_comparison} (use this to understand specific gaps between input and reference, and guide suggestions for bridging those gaps toward the reference direction, not exact replication)
+                - Input track pattern: {input_pattern} - THIS IS YOUR PRIMARY FOCUS
+                - Input raw pattern: {input_raw_pattern} (detailed timing - use this ONLY to identify unusually long/short sections, not for suggestions)
+                - Reference track pattern: {reference_pattern} (inspiration only - use for creative ideas, not rigid copying)
+                - Reference raw pattern: {reference_raw_pattern} (reference timing for creative inspiration only)
+                - User question: {question}
 
-        **[RELEVANT CATEGORY]:**
-        Based on the user's current {input_pattern} structure and similar examples, provide specific advice addressing their question. Consider the measurable differences noted above when making recommendations...
+                IMPORTANT TIMING AND PATTERN NOTES:
+                - Always reference the COMPRESSED pattern of the input track when suggesting changes
+                - Use the RAW pattern only to identify timing issues (e.g., "your B section is quite long at 12 chunks/48 bars" or "the final O is very short at 2 chunks/8 bars")
+                - When suggesting changes, speak in 4-bar chunks: "add 2 chunks (8 bars) after the A" or "trim the B section by 3 chunks (12 bars)"
+                - Never reference raw pattern numbers in suggestions (don't say "change 12B to 8B" - say "trim the B section by 4 chunks")
 
-        Remember: The user's track currently has pattern {input_pattern}. Always reference this when giving advice and be clear about what sections exist vs. what could be added. Focus on answering their specific question while incorporating insights from the feature analysis.
+                IMPORTANT TO TYPE OF FEEDBACK: Stay focused on what the user is asking for. If they ask for mix/EQ help, only give mix advice. If they ask for arrangement help, only give arrangement advice. Don't add other types of feedback unless specifically requested.
+                - Feedback examples: {examples}
 
-        IMPORTANT: Your response should ONLY contain the music feedback for the user. Do not include any of these instructions or meta-commentary in your output.
+                Instructions:
+                1. Internally, reason using a Graph of Thought structure:
+                - Nodes = track sections (O, A, B, C) with attributes:
+                    - Energy, groove, eq and arrangement characteristics from features
+                    - Differences from reference track
+                    - Positive aspects that are already working
+                    - Musical reasoning for potential improvements
+                - Edges = suggested improvements or actions:
+                    - Types: "add section", "extend section", "adjust energy", "modify groove", "mix advice", "suggest classic track for arrangement inspiration"
+                    - Only suggest changes consistent with the user's current pattern
+                    - Include reasoning for each suggestion based on features, reference track, and relevant feedback examples
+                2. Filter feedback examples using feature and pattern similarity:
+                - Only use examples relevant to the current input track, you can use the {input_features} and {input_pattern} as a guide here.
+                - Extract the communication style, tone, and personality from the feedback examples
+                - Adopt the producer's voice: use their vocabulary patterns, phrasing style, and approach to giving feedback
+                - Integrate actionable advice from examples into your reasoning
+                3. Generate readable, user-facing feedback:
+                - Begin with a descriptive, supportive analysis of the user's track, highlighting strengths and differences from the reference
+                - Provide section-by-section guidance, referencing only sections present in the input or reference pattern
+                - Explain *why* each suggested change is musically helpful, using natural producer language
+                - Frame suggestions using the producer's typical phrasing patterns (e.g., their preferred way of suggesting changes)
+                - Organize feedback by relevant categories based on the user question (e.g., Arrangement, Energy, Rhythm, Mix)
+                - Reference relevant feedback examples if they support your advice
+                - When using technical analysis, translate to producer language:
+                    "onset_density too high" → "simplify the drum pattern"
+                    "spectral_centroid low" → "add some high-end sparkle"
+                    "mid-range heavy" → "carve space around 200Hz"
 
-        ---
-        RESPONSE:"""
+                Critical rules:
+                - STRICTLY only reference sections that actually exist in the input track pattern. If input track is "O", it has ONLY intro/outro material and NO other sections exist yet.
+                - Do not suggest extending or modifying non-existent sections (e.g., if input is "O", don't mention "extending the B section")
+                - Do not invent arrangement details or instruments not present in examples
+                - Only use feedback examples that are relevant based on feature and pattern similarity
+                - Keep all advice musically grounded and actionable
+                - Maintain the producer's authentic voice and tone throughout your response
+                - NEVER reference examples by number (e.g., "Example 1", "Example 3") in your output
+                - Use clear, accessible language instead of raw technical terms (e.g., "peak_density" → "rhythmic intensity", "spectral_centroid" → "brightness")
+                - If suggesting EQ changes, provide specific frequency ranges and techniques
+                - Focus on the 2 most impactful changes, not a comprehensive overhaul
+                - NEVER use technical analysis terms in output: no "onset density", "beat strength", "spectral centroid"
+                - Always translate: "onset density too high" → "drum pattern feels busy", "low beat strength" → "kick needs more punch"
+
+                Output:
+                - A readable, structured feedback report for the user, including:
+                - A warm casaul greeting complimenting their track mentioning the {stage} and {genre}
+                - Descriptive musical analysis of the track
+                - Exactly 2 numbered suggestions with clear reasoning
+                - Section-specific advice (arrangement, energy, rhythm, mix) - only include sections relevant to the user question: {question}
+                - When describing arrangment advice use the full section names with optional letter clarification: "Groove sections (A)","Main Hook sections (B)", etc.
+                - Musical reasoning behind suggestions
+                - Actionable steps based on relevant feedback examples only if they make sense
+                - A 'Pro-tip' relevant to their track
+                - End with supportive encouragement under the heading "FINAL THOUGHTS" with a clear call-to-action encouraging the user to work on their track and come back with a new version for more feedback or producer advice.
+                -
+                """
 
         return ChatPromptTemplate.from_template(template)
 
@@ -486,6 +649,22 @@ class AudioRAG:
             print("Make sure Ollama is running with: ollama serve")
             print(f"And that the model '{self.llm_model}' is available")
             return False
+
+    def clean_llm_output(self, text: str) -> str:
+        """
+        Remove <think> tags and their content from LLM output
+        """
+        import re
+
+        # Remove anything between <think> and </think> tags (case insensitive, multiline)
+        cleaned = re.sub(
+            r"<think>.*?</think>", "", text, flags=re.IGNORECASE | re.DOTALL
+        )
+        # Clean up any extra whitespace that might be left
+        cleaned = re.sub(
+            r"\n\s*\n\s*\n", "\n\n", cleaned
+        )  # Replace multiple newlines with double newlines
+        return cleaned.strip()
 
     @traceable
     def generate_feedback(
@@ -506,57 +685,86 @@ class AudioRAG:
         elif len(similar_examples) < 3:
             retrieval_warning = f"⚠️ **Limited Training Data**: Only found {len(similar_examples)} similar examples. Feedback quality may be limited.\n\n"
 
-        # Add debug info
-        if similar_examples:
-            total_feedback_items = sum(
-                len(ex.get("feedback", [])) for ex in similar_examples
-            )
-            retrieval_warning += f"📊 **Debug Info**: Retrieved {len(similar_examples)} examples with {total_feedback_items} feedback items\n\n"
+        # Add debug info (commented out for cleaner demo UI)
+        # if similar_examples:
+        #     total_feedback_items = sum(len(ex.get("feedback", [])) for ex in similar_examples)
+        #     retrieval_warning += f"📊 **Debug Info**: Retrieved {len(similar_examples)} examples with {total_feedback_items} feedback items\n\n"
 
         # Format examples for prompt
         formatted_examples = self.format_examples_for_prompt(
-            similar_examples, user_upload
+            similar_examples, user_upload, question
         )
 
         # Get input and reference track data for the prompt
         session = self.db.get_session()
         try:
+            input_track_id = getattr(user_upload, "input_track_id", None)
+            reference_track_id = getattr(user_upload, "reference_track_id", None)
+
             input_track = (
-                session.query(Track)
-                .filter(Track.id == user_upload.input_track_id)
-                .first()
+                session.query(Track).filter(Track.id == input_track_id).first()
+                if input_track_id
+                else None
             )
             reference_track = (
-                session.query(Track)
-                .filter(Track.id == user_upload.reference_track_id)
-                .first()
+                session.query(Track).filter(Track.id == reference_track_id).first()
+                if reference_track_id
+                else None
             )
-            input_pattern = (
-                input_track.smoothed_arrangement_pattern
-                if input_track
-                and hasattr(input_track, "smoothed_arrangement_pattern")
-                and input_track.smoothed_arrangement_pattern
-                else "Unknown"
-            )
-            reference_pattern = (
-                reference_track.smoothed_arrangement_pattern
-                if reference_track
-                and hasattr(reference_track, "smoothed_arrangement_pattern")
-                and reference_track.smoothed_arrangement_pattern
-                else "Unknown"
-            )
+            input_pattern = "Unknown"
+            reference_pattern = "Unknown"
+            input_raw_pattern = "Unknown"
+            reference_raw_pattern = "Unknown"
+
+            if input_track and hasattr(input_track, "smoothed_arrangement_pattern"):
+                pattern = getattr(input_track, "smoothed_arrangement_pattern")
+                input_pattern = (
+                    pattern
+                    if pattern and not hasattr(pattern, "__table__")
+                    else "Unknown"
+                )
+
+            if reference_track and hasattr(
+                reference_track, "smoothed_arrangement_pattern"
+            ):
+                pattern = getattr(reference_track, "smoothed_arrangement_pattern")
+                reference_pattern = (
+                    pattern
+                    if pattern and not hasattr(pattern, "__table__")
+                    else "Unknown"
+                )
+
+            if input_track and hasattr(input_track, "raw_arrangement_pattern"):
+                raw_pattern = getattr(input_track, "raw_arrangement_pattern")
+                input_raw_pattern = (
+                    raw_pattern
+                    if raw_pattern and not hasattr(raw_pattern, "__table__")
+                    else "Unknown"
+                )
+
+            if reference_track and hasattr(reference_track, "raw_arrangement_pattern"):
+                raw_pattern = getattr(reference_track, "raw_arrangement_pattern")
+                reference_raw_pattern = (
+                    raw_pattern
+                    if raw_pattern and not hasattr(raw_pattern, "__table__")
+                    else "Unknown"
+                )
 
             # Get global features for comparison
-            input_features = (
-                input_track.global_feature_data
-                if input_track and input_track.global_feature_data
-                else {}
-            )
-            ref_features = (
-                reference_track.global_feature_data
-                if reference_track and reference_track.global_feature_data
-                else {}
-            )
+            input_features = {}
+            ref_features = {}
+
+            if input_track and hasattr(input_track, "global_feature_data"):
+                features = getattr(input_track, "global_feature_data")
+                input_features = (
+                    features if features and not hasattr(features, "__table__") else {}
+                )
+
+            if reference_track and hasattr(reference_track, "global_feature_data"):
+                features = getattr(reference_track, "global_feature_data")
+                ref_features = (
+                    features if features and not hasattr(features, "__table__") else {}
+                )
 
             print(f"DEBUG: Input features available: {bool(input_features)}")
             print(f"DEBUG: Ref features available: {bool(ref_features)}")
@@ -579,24 +787,39 @@ class AudioRAG:
             "question": (
                 question
                 if question
-                else f"Please provide feedback on my {user_upload.genre} track."
+                else f"Please provide feedback on my {getattr(user_upload, 'genre', 'unknown')} track."
             ),
             "input_pattern": input_pattern,
+            "input_raw_pattern": input_raw_pattern,
             "reference_pattern": reference_pattern,
+            "reference_raw_pattern": reference_raw_pattern,
+            "input_features": (
+                str(input_features) if input_features else "No features available"
+            ),
+            "ref_features": (
+                str(ref_features) if ref_features else "No features available"
+            ),
             "feature_comparison": feature_comparison,
-            "genre": user_upload.genre,
-            "stage": user_upload.stage,
+            "genre": getattr(user_upload, "genre", "unknown"),
+            "stage": getattr(user_upload, "stage", "unknown"),
         }
+
+        print(f"DEBUG: Chain input keys: {list(chain_input.keys())}")
+        for key, value in chain_input.items():
+            print(f"DEBUG: {key}: {type(value)} - {str(value)[:100]}...")
 
         # Generate feedback using the pre-initialized RAG chain
         try:
             feedback = self.chain.invoke(chain_input)
-            # Prepend retrieval warning to feedback
-            return retrieval_warning + feedback
+            # Clean the feedback to remove <think> tags and prepend retrieval warning
+            cleaned_feedback = self.clean_llm_output(feedback)
+            return retrieval_warning + cleaned_feedback
         except Exception as e:
             print(f"Error generating feedback with LLM: {e}")
             # Fallback to returning formatted prompt if LLM fails
-            return retrieval_warning + self.prompt.format(**chain_input)
+            fallback_feedback = self.prompt.format(**chain_input)
+            cleaned_fallback = self.clean_llm_output(fallback_feedback)
+            return retrieval_warning + cleaned_fallback
 
 
 # Example usage

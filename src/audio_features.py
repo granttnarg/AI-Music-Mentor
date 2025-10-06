@@ -229,6 +229,12 @@ class AudioFeatureService:
         )
         tempo = float(tempo)
 
+        # Adjust tempo to reasonable range for electronic music
+        if tempo < 75:
+            tempo *= 2
+        elif tempo > 160:
+            tempo /= 2
+
         # Save BPM for other methods
         self.tempo = tempo
 

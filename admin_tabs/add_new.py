@@ -83,7 +83,7 @@ def show_add_new_tab():
     with col1:
         st.subheader("Input Track")
         input_file = st.file_uploader(
-            "Upload input track (unfinished)", type=["mp3"], key="input"
+            "Upload input track (unfinished)", type=["mp3", "wav", "aif"], key="input"
         )
         if input_file:
             st.audio(input_file)
@@ -91,7 +91,9 @@ def show_add_new_tab():
     with col2:
         st.subheader("Reference Track")
         ref_file = st.file_uploader(
-            "Upload reference track (finished/target)", type=["mp3"], key="reference"
+            "Upload reference track (finished/target)",
+            type=["mp3", "wav", "aif"],
+            key="reference",
         )
         if ref_file:
             st.audio(ref_file)
@@ -276,6 +278,7 @@ def show_add_new_tab():
                             ref_embedding=ref_data["embedding"],
                             feedback_items=feedback_items,
                             genre=track_genre,
+                            stage=track_stage,
                             input_global_features=input_data["global_features"],
                             ref_global_features=ref_data["global_features"],
                         )

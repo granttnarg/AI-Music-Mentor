@@ -55,9 +55,9 @@ def show_similarity_viz_tab():
                 "Dimensionality Reduction", ["PCA", "t-SNE"]
             )
             training_only = st.checkbox(
-                "Only search tracks with training examples",
+                "Only search INPUT tracks from training examples",
                 value=False,
-                help="Uses find_similar_tracks_with_training_examples method",
+                help="Only searches tracks that are input tracks in training examples (excludes reference tracks)",
             )
 
         if st.button("Generate 3D Similarity Visualization", type="primary"):
@@ -99,14 +99,13 @@ def show_similarity_viz_tab():
 
                         # But for similarity search, get filtered set if needed
                         if training_only:
-                            # Get only tracks that have training examples for similarity search
+                            # Get only tracks that are INPUT tracks in training examples
                             search_tracks_query = (
                                 session.query(Track)
                                 .filter(Track.global_embedding.isnot(None))
                                 .join(
                                     TrainingExample,
-                                    (TrainingExample.example_track_id == Track.id)
-                                    | (TrainingExample.reference_track_id == Track.id),
+                                    TrainingExample.example_track_id == Track.id,
                                 )
                                 .all()
                             )
@@ -213,12 +212,11 @@ def show_similarity_viz_tab():
                                 )
                                 order_by = score_col.desc()
 
-                            # Add training filter if needed
+                            # Add training filter if needed (only INPUT tracks)
                             if training_only and base_query is not None:
                                 base_query = base_query.join(
                                     TrainingExample,
-                                    (TrainingExample.example_track_id == Track.id)
-                                    | (TrainingExample.reference_track_id == Track.id),
+                                    TrainingExample.example_track_id == Track.id,
                                 )
 
                             # Execute query and handle duplicates
@@ -416,7 +414,7 @@ def show_similarity_viz_tab():
                             f"🎵 3D Audio Similarity Space ({similarity_metric} metric)"
                         )
                         if training_only:
-                            title_text += " - Training Tracks Only"
+                            title_text += " - Input Training Tracks Only"
                         title_text += (
                             f"<br><sup>{axis_explanation[reduction_method]}</sup>"
                         )
@@ -458,7 +456,9 @@ def show_similarity_viz_tab():
 
                         # Show similarity results using the actual returned tracks with scores
                         method_display = (
-                            "Training Tracks Only" if training_only else "All Tracks"
+                            "Input Training Tracks Only"
+                            if training_only
+                            else "All Tracks"
                         )
                         st.subheader(
                             f"Top Similar Tracks ({method_display} - {similarity_metric} metric)"

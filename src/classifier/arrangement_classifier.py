@@ -259,7 +259,7 @@ class ArrangementClassifier:
                 print("❌ Failed to load model")
                 return None, None, None
 
-        print(f"Analyzing arrangement with CRNN pipeline: {Path(audio_path).name}")
+        # Analyzing arrangement with CRNN pipeline: {Path(audio_path).name}
 
         try:
             # Import AudioProcess here to avoid circular imports
@@ -275,21 +275,27 @@ class ArrangementClassifier:
             )
 
             if processed_audio is None:
-                print("❌ Audio processing failed")
+                # Audio processing failed
                 return None, None, None
 
-            print(f"Audio processed succesfully: {processed_audio.shape}")
+            # Audio processed successfully: {processed_audio.shape}
 
             # Get predictions
-            print("Running inference...")
+            # Running inference...
             predictions = self.model.predict(processed_audio, verbose=0)
             predicted_classes = np.argmax(predictions[0], axis=1)
             confidence_scores = np.max(predictions[0], axis=1)
 
-            # Limit to actual audio length
-            actual_meters = min(
-                len(audio_features.meter_grid) - 1, len(predicted_classes)
-            )
+            # Limit to actual audio length - meter_grid has N+1 elements for N segments
+            # so actual segments should be len(meter_grid) - 1
+            max_segments = len(audio_features.meter_grid) - 1
+            actual_meters = min(max_segments, len(predicted_classes))
+
+            print(f"   Meter grid boundaries: {len(audio_features.meter_grid)} points")
+            print(f"   Expected segments: {max_segments}")
+            print(f"   Raw predictions: {len(predicted_classes)}")
+            print(f"   Using {actual_meters} segments")
+
             predicted_classes = predicted_classes[:actual_meters]
             confidence_scores = confidence_scores[:actual_meters]
 
