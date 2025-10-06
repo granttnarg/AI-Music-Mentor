@@ -113,7 +113,8 @@ def show_admin_eval_tab():
                 placeholder="e.g., reference_track.mp3",
             )
         with col2:
-            model_version = st.text_input("Model Version", value="llama3.2:latest")
+            model_version = st.selectbox(  "Model Version", options=["llama3.2:latest", "qwen3:8b"])
+            st.write("You selected:", model_version)
             date = st.date_input("Date", value=datetime.now().date())
 
         # Optional track ID (from database after processing)

@@ -38,18 +38,24 @@ def show_browse_edit_tab():
             st.success(f"Found {len(training_examples)} training examples")
 
             # Search and filter options
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 genre_filter = st.selectbox(
                     "Filter by genre:", ["All"] + GENRES, key="genre_filter"
                 )
             with col2:
+                # Stage filter
+                STAGES = ["All", "Sketch", "Half Finished", "Almost Finished"]
+                stage_filter = st.selectbox(
+                    "Filter by stage:", STAGES, key="stage_filter"
+                )
+            with col3:
                 search_query = st.text_input(
                     "Search in filenames:",
                     placeholder="Enter filename to search...",
                     key="search_query",
                 )
-            with col3:
+            with col4:
                 # Show only entries with placeholder feedback
                 show_placeholders_only = st.checkbox(
                     "Show only placeholder feedback",
@@ -63,6 +69,12 @@ def show_browse_edit_tab():
             if genre_filter != "All":
                 filtered_examples = [
                     ex for ex in filtered_examples if ex["genre"] == genre_filter
+                ]
+                
+            # Stage filter
+            if stage_filter != "All":
+                filtered_examples = [
+                    ex for ex in filtered_examples if ex.get("stage", "Half Finished") == stage_filter
                 ]
 
             # Search filter
@@ -97,7 +109,7 @@ def show_browse_edit_tab():
             # Display examples
             for i, example in enumerate(filtered_examples):
                 with st.expander(
-                    f"ID {example['id']} - {example['genre']} - {example['created_at'].strftime('%Y-%m-%d %H:%M')}"
+                    f"ID {example['id']} - {example['genre']} - {example.get('stage', 'Half Finished')} - {example['created_at'].strftime('%Y-%m-%d %H:%M')}"
                 ):
                     # Basic info
                     col1, col2 = st.columns(2)
@@ -286,6 +298,20 @@ def show_browse_edit_tab():
                         ),
                         key=f"genre_{example['id']}",
                     )
+                    
+                    # Stage editing
+                    STAGES = ["Sketch", "Half Finished", "Almost Finished"]
+                    current_stage = example.get("stage", "Half Finished")
+                    new_stage = st.selectbox(
+                        "Stage:",
+                        STAGES,
+                        index=(
+                            STAGES.index(current_stage)
+                            if current_stage in STAGES
+                            else 1  # Default to "Half Finished"
+                        ),
+                        key=f"stage_{example['id']}",
+                    )
 
                     # Quick edit for placeholder feedback
                     has_placeholder = any(
@@ -389,8 +415,11 @@ def show_browse_edit_tab():
                             genre_to_update = (
                                 new_genre if new_genre != current_genre else None
                             )
+                            stage_to_update = (
+                                new_stage if new_stage != current_stage else None
+                            )
                             db_ops.update_training_example_feedback(
-                                example["id"], feedback_updates, genre_to_update
+                                example["id"], feedback_updates, genre_to_update, stage_to_update
                             )
                             st.success("✅ Changes saved successfully!")
                             st.rerun()  # Refresh the page
