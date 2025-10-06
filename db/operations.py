@@ -47,6 +47,7 @@ class AudioRAGOperations:
                     "smoothed_arrangement_pattern": track.smoothed_arrangement_pattern,
                     "raw_predictions": track.raw_predictions,
                     "raw_confidence_scores": track.raw_confidence_scores,
+                    "global_feature_data": track.global_feature_data,
                 }
             else:
                 return None
@@ -234,6 +235,7 @@ class AudioRAGOperations:
         ref_embedding: List[float],
         feedback_items: List[dict],
         genre: str = "techno",
+        stage: str = "Half Finished",
         classify_arrangement: bool = True,
         input_global_features=None,
         ref_global_features=None,
@@ -284,6 +286,7 @@ class AudioRAGOperations:
                 example_track_id=input_track.id,
                 reference_track_id=ref_track.id,
                 genre=genre,
+                stage=stage,
             )
             session.add(training_example)
             session.flush()  # Get training example ID
@@ -330,6 +333,7 @@ class AudioRAGOperations:
                     {
                         "id": example.id,
                         "genre": example.genre,
+                        "stage": example.stage,
                         "created_at": example.created_at,
                         "input_track": {
                             "id": example.example_track.id,
@@ -430,7 +434,7 @@ class AudioRAGOperations:
             session.close()
 
     def update_training_example_feedback(
-        self, training_id: int, feedback_updates: list, genre: str | None = None
+        self, training_id: int, feedback_updates: list, genre: str | None = None, stage: str | None = None
     ):
         """Update feedback items for a training example."""
         session = self.db.get_session()
@@ -447,6 +451,10 @@ class AudioRAGOperations:
             # Update genre if provided
             if genre:
                 setattr(example, "genre", genre)
+                
+            # Update stage if provided
+            if stage:
+                setattr(example, "stage", stage)
 
             # First, delete all existing feedback (we'll re-add what we want to keep)
             session.query(Feedback).filter(
