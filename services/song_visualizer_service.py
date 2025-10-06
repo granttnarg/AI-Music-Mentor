@@ -29,6 +29,14 @@ class SongVisualizerService:
             "B": "red",  # High Energy (drops, climaxes)
             "C": "yellow",  # Breakdown/transitions
         }
+        
+        # Legend labels for arrangement sections (matching LLM output naming)
+        self.class_labels = {
+            "O": "Intro/Outro",
+            "A": "Groove Section", 
+            "B": "Main Section",
+            "C": "Breakdown"
+        }
 
         # Y-positions for timeline plot
         self.class_y_positions = {
@@ -696,15 +704,154 @@ class SongVisualizerService:
 
         return fig
 
+    def plot_time_aligned_comparison(
+        self,
+        input_audio_path: str,
+        input_arrangement_blocks: List[Dict],
+        input_title: str,
+        reference_audio_path: str,
+        reference_arrangement_blocks: List[Dict],
+        reference_title: str,
+        save_path: Optional[str] = None,
+        figsize: Tuple[int, int] = (15, 10),
+    ) -> plt.Figure:
+        """
+        Plot two tracks with time-aligned scaling for direct comparison.
+        
+        Args:
+            input_audio_path: Path to input audio file
+            input_arrangement_blocks: Input track arrangement blocks
+            input_title: Title for input track
+            reference_audio_path: Path to reference audio file
+            reference_arrangement_blocks: Reference track arrangement blocks  
+            reference_title: Title for reference track
+            save_path: Optional path to save the plot
+            figsize: Figure size (width, height)
+            
+        Returns:
+            matplotlib Figure object
+        """
+        # Load both audio files to get durations
+        input_y, input_sr = librosa.load(input_audio_path, sr=None)
+        reference_y, reference_sr = librosa.load(reference_audio_path, sr=None)
+        
+        input_duration = len(input_y) / input_sr
+        reference_duration = len(reference_y) / reference_sr
+        max_duration = max(input_duration, reference_duration)
+        
+        # Harmonic/percussive separation for both tracks
+        input_y_harm, input_y_perc = librosa.effects.hpss(input_y)
+        reference_y_harm, reference_y_perc = librosa.effects.hpss(reference_y)
+        
+        plt.close("all")
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, dpi=96)
+        
+        # Plot input track (top) with explicit time axis
+        input_times = np.linspace(0, input_duration, len(input_y_harm))
+        ax1.plot(input_times, input_y_harm, alpha=0.8, color="deepskyblue", label="Harmonic", linewidth=0.5)
+        ax1.plot(input_times, input_y_perc, alpha=0.7, color="plum", label="Percussive", linewidth=0.5)
+        
+        # Add arrangement sections for input track (clipped to actual duration)
+        print(f"DEBUG VIZ: Input track duration: {input_duration:.2f}s")
+        legend_added_input = set()
+        for i, block in enumerate(input_arrangement_blocks):
+            start_time = block["start_time"]
+            original_end_time = block["end_time"]
+            end_time = min(block["end_time"], input_duration)  # Clip to actual track duration
+            section = block["arrangement_section"]
+            
+            print(f"DEBUG VIZ: Block {i+1}: {section} | {start_time:.2f}-{original_end_time:.2f}s (clipped to {end_time:.2f}s)")
+            
+            # Skip blocks that start after the track ends
+            if start_time >= input_duration:
+                print(f"DEBUG VIZ: SKIPPING block {section} - starts after track ends ({start_time:.2f} >= {input_duration:.2f})")
+                continue
+            
+            color = self.class_colors.get(section, "black")
+            label = (
+                f"{section} - {self._get_section_description(section)}"
+                if section not in legend_added_input
+                else None
+            )
+            if label:
+                legend_added_input.add(section)
+                
+            ax1.axvspan(start_time, end_time, color=color, alpha=0.4, label=label)
+        
+        # Configure input track plot
+        ax1.set_xlim([0, max_duration])  # Use max duration for alignment
+        ax1.set_ylabel("Amplitude")
+        ax1.set_title(f"{input_title} (Duration: {input_duration:.1f}s)")
+        ax1.legend(loc="upper right")
+        
+        # Add fade-out indicator if input track is shorter
+        if input_duration < max_duration:
+            ax1.axvspan(input_duration, max_duration, color="lightgray", alpha=0.3, label="Track ends")
+            ax1.text(input_duration + (max_duration - input_duration)/2, 0, "Track Ends", 
+                    ha="center", va="center", fontsize=10, style="italic", alpha=0.7)
+        
+        # Plot reference track (bottom) with explicit time axis
+        reference_times = np.linspace(0, reference_duration, len(reference_y_harm))
+        ax2.plot(reference_times, reference_y_harm, alpha=0.8, color="deepskyblue", label="Harmonic", linewidth=0.5)
+        ax2.plot(reference_times, reference_y_perc, alpha=0.7, color="plum", label="Percussive", linewidth=0.5)
+        
+        # Add arrangement sections for reference track (clipped to actual duration)
+        legend_added_reference = set()
+        for block in reference_arrangement_blocks:
+            start_time = block["start_time"]
+            end_time = min(block["end_time"], reference_duration)  # Clip to actual track duration
+            section = block["arrangement_section"]
+            
+            # Skip blocks that start after the track ends
+            if start_time >= reference_duration:
+                continue
+            
+            color = self.class_colors.get(section, "black")
+            label = (
+                f"{section} - {self._get_section_description(section)}"
+                if section not in legend_added_reference
+                else None
+            )
+            if label:
+                legend_added_reference.add(section)
+                
+            ax2.axvspan(start_time, end_time, color=color, alpha=0.4, label=label)
+        
+        # Configure reference track plot
+        ax2.set_xlim([0, max_duration])  # Use max duration for alignment
+        ax2.set_ylabel("Amplitude")
+        ax2.set_title(f"{reference_title} (Duration: {reference_duration:.1f}s)")
+        ax2.legend(loc="upper right")
+        
+        # Add fade-out indicator if reference track is shorter
+        if reference_duration < max_duration:
+            ax2.axvspan(reference_duration, max_duration, color="lightgray", alpha=0.3, label="Track ends")
+            ax2.text(reference_duration + (max_duration - reference_duration)/2, 0, "Track Ends",
+                    ha="center", va="center", fontsize=10, style="italic", alpha=0.7)
+        
+        # Set time-based x-axis labels (synchronized)
+        xticks = np.arange(0, max_duration, 30)  # Every 30 seconds
+        xlabels = [f"{int(tick // 60)}:{int(tick % 60):02d}" for tick in xticks]
+        
+        ax1.set_xticks(xticks)
+        ax1.set_xticklabels([])  # No labels on top plot
+        
+        ax2.set_xticks(xticks)
+        ax2.set_xticklabels(xlabels)
+        ax2.set_xlabel("Time (mm:ss)")
+        
+        plt.tight_layout()
+        
+        # Save if path is provided
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches="tight")
+            print(f"✅ Time-aligned comparison saved to {save_path}")
+            
+        return fig
+
     def _get_section_description(self, section: str) -> str:
-        """Get human-readable description for section code."""
-        descriptions = {
-            "O": "Intro/Outro/Other",
-            "A": "Medium Energy",
-            "B": "High Energy",
-            "C": "Breakdown",
-        }
-        return descriptions.get(section, "Unknown")
+        """Get human-readable description for section code (matching LLM output naming)."""
+        return self.class_labels.get(section, "Unknown")
 
     def show_plot(self, fig: plt.Figure):
         """Display the plot (useful for interactive environments)."""
