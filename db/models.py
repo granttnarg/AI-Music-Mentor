@@ -55,6 +55,7 @@ class TrainingExample(Base):
     example_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
     reference_track_id = Column(Integer, ForeignKey("tracks.id"), nullable=False)
     genre = Column(String, nullable=False, default="techno")
+    stage = Column(String, nullable=True, default="Half Finished")  # "Sketch", "Half Finished", "Almost Finished"
     created_at = Column(DateTime, default=datetime.now)
 
     # Relationships
