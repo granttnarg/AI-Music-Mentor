@@ -228,7 +228,7 @@ class AudioFeatureService:
             y=y_perc, sr=self.sr, hop_length=self.hop_length
         )
         tempo = float(tempo)
-        
+
         # Adjust tempo to reasonable range for electronic music
         if tempo < 75:
             tempo *= 2

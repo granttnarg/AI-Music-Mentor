@@ -83,7 +83,8 @@ uploads_dir = Path("data/uploads")
 uploads_dir.mkdir(exist_ok=True)
 
 # Custom CSS for styling and layout
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Import Google Font */
     @import url('https://fonts.googleapis.com/css2?family=Rubik+Iso&display=swap');
@@ -226,7 +227,9 @@ st.markdown("""
     
 
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.title("AI Music Mentor")
 st.markdown("**techno edition**")
@@ -242,56 +245,57 @@ with st.sidebar:
             <img src="data:image/jpeg;base64,{}" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
         """.format(
-            __import__('base64').b64encode(
-                open("images/pexels-muffinlandge-27007091.jpg", "rb").read()
-            ).decode()
+            __import__("base64")
+            .b64encode(open("images/pexels-muffinlandge-27007091.jpg", "rb").read())
+            .decode()
         ),
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
-    
+
     st.subheader("Track Upload")
     st.caption("Upload your tracks and set preferences")
-    
+
     track_genre = st.selectbox("Unfinished Track Genre:", GENRES)
-    
+
     input_file = st.file_uploader(
-        "Upload Unfinished track", 
+        "Upload Unfinished track",
         type=["mp3", "wav", "aif"],
-        help="MP3, WAV, or AIF file"
+        help="MP3, WAV, or AIF file",
     )
-    
+
     if input_file:
         st.audio(input_file, format="audio/mp3")
-    
+
     ref_file = st.file_uploader(
-        "Upload Reference track", 
+        "Upload Reference track",
         type=["mp3", "wav", "aif"],
-        help="Something you're aiming to get closer to"
+        help="Something you're aiming to get closer to",
     )
-    
+
     if ref_file:
         st.audio(ref_file, format="audio/mp3")
-    
+
     text_input = st.text_area(
-        "What do you need help with?", 
+        "What do you need help with?",
         height=80,
-        placeholder="Describe what you need help with on your track..."
+        placeholder="Describe what you need help with on your track...",
     )
-    
+
     dropdown_option = st.selectbox(
-        "Track Stage:", 
-        ["Sketch", "Half Finished", "Almost Finished"]
+        "Track Stage:", ["Sketch", "Half Finished", "Almost Finished"]
     )
-    
+
     # Visual-only toggle for quick segmentation testing
     visual_only = st.checkbox(
-        "Visual Only", 
+        "Visual Only",
         value=False,
-        help="Skip AI feedback for faster segmentation testing"
+        help="Skip AI feedback for faster segmentation testing",
     )
-    
+
     # Submit button in sidebar
-    submit_button = st.button("Analyze Tracks", type="primary", use_container_width=True)
+    submit_button = st.button(
+        "Analyze Tracks", type="primary", use_container_width=True
+    )
 
 # Main content area
 if not submit_button:
@@ -315,7 +319,7 @@ else:
     required_inputs = input_file and ref_file is not None
     if not visual_only:
         required_inputs = required_inputs and text_input
-    
+
     if required_inputs:
         with st.spinner("Processing your tracks..."):
             # Create a session-specific folder
@@ -440,57 +444,79 @@ else:
 
                                 # Pre-generate time-aligned comparison visualization
                                 visualizer = SongVisualizerService()
-                                
+
                                 input_blocks = None
                                 ref_blocks = None
 
                                 # Process input track
-                                if input_track_data and input_track_data.get("raw_arrangement_pattern"):
-                                    if input_track_data.get("raw_predictions") and input_track_data.get("raw_confidence_scores"):
+                                if input_track_data and input_track_data.get(
+                                    "raw_arrangement_pattern"
+                                ):
+                                    if input_track_data.get(
+                                        "raw_predictions"
+                                    ) and input_track_data.get("raw_confidence_scores"):
                                         import json
                                         import numpy as np
                                         from src.classifier.arrangement_postprocessing import (
                                             process_arrangement_predictions,
                                         )
 
-                                        raw_predictions = json.loads(input_track_data["raw_predictions"])
-                                        confidence_scores = json.loads(input_track_data["raw_confidence_scores"])
+                                        raw_predictions = json.loads(
+                                            input_track_data["raw_predictions"]
+                                        )
+                                        confidence_scores = json.loads(
+                                            input_track_data["raw_confidence_scores"]
+                                        )
 
-                                        input_blocks, analysis = process_arrangement_predictions(
-                                            np.array(raw_predictions),
-                                            np.array(confidence_scores),
-                                            ["O", "A", "B", "C"],
-                                            min_segment_length=2,
-                                            confidence_threshold=0.4,
+                                        input_blocks, analysis = (
+                                            process_arrangement_predictions(
+                                                np.array(raw_predictions),
+                                                np.array(confidence_scores),
+                                                ["O", "A", "B", "C"],
+                                                min_segment_length=2,
+                                                confidence_threshold=0.4,
+                                            )
                                         )
 
                                 # Process reference track
-                                if ref_track_data and ref_track_data.get("raw_arrangement_pattern"):
-                                    if ref_track_data.get("raw_predictions") and ref_track_data.get("raw_confidence_scores"):
+                                if ref_track_data and ref_track_data.get(
+                                    "raw_arrangement_pattern"
+                                ):
+                                    if ref_track_data.get(
+                                        "raw_predictions"
+                                    ) and ref_track_data.get("raw_confidence_scores"):
                                         import json
                                         import numpy as np
                                         from src.classifier.arrangement_postprocessing import (
                                             process_arrangement_predictions,
                                         )
 
-                                        raw_predictions = json.loads(ref_track_data["raw_predictions"])
-                                        confidence_scores = json.loads(ref_track_data["raw_confidence_scores"])
-
-                                        ref_blocks, analysis = process_arrangement_predictions(
-                                            np.array(raw_predictions),
-                                            np.array(confidence_scores),
-                                            ["O", "A", "B", "C"],
-                                            min_segment_length=2,
-                                            confidence_threshold=0.4,
+                                        raw_predictions = json.loads(
+                                            ref_track_data["raw_predictions"]
                                         )
-                                
+                                        confidence_scores = json.loads(
+                                            ref_track_data["raw_confidence_scores"]
+                                        )
+
+                                        ref_blocks, analysis = (
+                                            process_arrangement_predictions(
+                                                np.array(raw_predictions),
+                                                np.array(confidence_scores),
+                                                ["O", "A", "B", "C"],
+                                                min_segment_length=2,
+                                                confidence_threshold=0.4,
+                                            )
+                                        )
+
                                 # Create time-aligned comparison if both tracks have arrangement data
                                 if input_blocks and ref_blocks:
                                     comparison_viz_fig = visualizer.plot_time_aligned_comparison(
                                         input_audio_path=input_track_data["file_path"],
                                         input_arrangement_blocks=input_blocks,
                                         input_title=f"Input Track: {input_data['original_filename']}",
-                                        reference_audio_path=ref_track_data["file_path"],
+                                        reference_audio_path=ref_track_data[
+                                            "file_path"
+                                        ],
                                         reference_arrangement_blocks=ref_blocks,
                                         reference_title=f"Reference Track: {ref_data['original_filename']}",
                                     )
@@ -518,7 +544,7 @@ else:
                     # Generate AI feedback (skip if visual-only mode)
                     feedback = None
                     feedback_error = None
-                    
+
                     if not visual_only:
                         status_text.text("Generating AI feedback...")
                         progress_bar.progress(95)
@@ -560,41 +586,66 @@ else:
 
                     # Create two-column layout: viz on left, feedback on right
                     viz_col, feedback_col = st.columns([3, 2])  # 60% viz, 40% feedback
-                    
+
                     with viz_col:
                         st.markdown("**Arrangement Analysis**")
-                        
+
                         if arrangement_error:
                             st.error(
                                 f"Could not load arrangement visualizations: {arrangement_error}"
                             )
                         else:
                             # Time-aligned comparison visualization
-                            if 'comparison_viz_fig' in locals():
+                            if "comparison_viz_fig" in locals():
                                 # Show patterns with BPM in compact format
                                 pattern_col1, pattern_col2 = st.columns(2)
                                 with pattern_col1:
-                                    if input_track_data and input_track_data.get("smoothed_arrangement_pattern"):
+                                    if input_track_data and input_track_data.get(
+                                        "smoothed_arrangement_pattern"
+                                    ):
                                         input_tempo = ""
-                                        if input_track_data.get("global_feature_data") and isinstance(input_track_data["global_feature_data"], dict):
-                                            tempo = input_track_data["global_feature_data"].get("rhythm", {}).get("tempo")
+                                        if input_track_data.get(
+                                            "global_feature_data"
+                                        ) and isinstance(
+                                            input_track_data["global_feature_data"],
+                                            dict,
+                                        ):
+                                            tempo = (
+                                                input_track_data["global_feature_data"]
+                                                .get("rhythm", {})
+                                                .get("tempo")
+                                            )
                                             if tempo:
                                                 input_tempo = f" ({tempo:.0f} BPM)"
-                                        st.markdown(f"**Input:** `{input_track_data['smoothed_arrangement_pattern']}`{input_tempo}")
-                                
+                                        st.markdown(
+                                            f"**Input:** `{input_track_data['smoothed_arrangement_pattern']}`{input_tempo}"
+                                        )
+
                                 with pattern_col2:
-                                    if ref_track_data and ref_track_data.get("smoothed_arrangement_pattern"):
+                                    if ref_track_data and ref_track_data.get(
+                                        "smoothed_arrangement_pattern"
+                                    ):
                                         ref_tempo = ""
-                                        if ref_track_data.get("global_feature_data") and isinstance(ref_track_data["global_feature_data"], dict):
-                                            tempo = ref_track_data["global_feature_data"].get("rhythm", {}).get("tempo")
+                                        if ref_track_data.get(
+                                            "global_feature_data"
+                                        ) and isinstance(
+                                            ref_track_data["global_feature_data"], dict
+                                        ):
+                                            tempo = (
+                                                ref_track_data["global_feature_data"]
+                                                .get("rhythm", {})
+                                                .get("tempo")
+                                            )
                                             if tempo:
                                                 ref_tempo = f" ({tempo:.0f} BPM)"
-                                        st.markdown(f"**Reference:** `{ref_track_data['smoothed_arrangement_pattern']}`{ref_tempo}")
-                                
+                                        st.markdown(
+                                            f"**Reference:** `{ref_track_data['smoothed_arrangement_pattern']}`{ref_tempo}"
+                                        )
+
                                 # Full-width visualization
                                 st.pyplot(comparison_viz_fig, use_container_width=True)
                                 plt.close(comparison_viz_fig)
-                                
+
                                 # Audio players underneath the visualization
                                 audio_col1, audio_col2 = st.columns(2)
                                 with audio_col1:
@@ -609,39 +660,66 @@ else:
                                 # Fallback to individual displays - show patterns first
                                 pattern_col1, pattern_col2 = st.columns(2)
                                 with pattern_col1:
-                                    if input_track_data and input_track_data.get("raw_arrangement_pattern"):
+                                    if input_track_data and input_track_data.get(
+                                        "raw_arrangement_pattern"
+                                    ):
                                         input_tempo = ""
-                                        if input_track_data.get("global_feature_data") and isinstance(input_track_data["global_feature_data"], dict):
-                                            tempo = input_track_data["global_feature_data"].get("rhythm", {}).get("tempo")
+                                        if input_track_data.get(
+                                            "global_feature_data"
+                                        ) and isinstance(
+                                            input_track_data["global_feature_data"],
+                                            dict,
+                                        ):
+                                            tempo = (
+                                                input_track_data["global_feature_data"]
+                                                .get("rhythm", {})
+                                                .get("tempo")
+                                            )
                                             if tempo:
                                                 input_tempo = f" ({tempo:.0f} BPM)"
-                                        st.markdown(f"**Input:** `{input_track_data['smoothed_arrangement_pattern']}`{input_tempo}")
+                                        st.markdown(
+                                            f"**Input:** `{input_track_data['smoothed_arrangement_pattern']}`{input_tempo}"
+                                        )
                                     else:
                                         st.info("Input pattern not available")
 
                                 with pattern_col2:
-                                    if ref_track_data and ref_track_data.get("raw_arrangement_pattern"):
+                                    if ref_track_data and ref_track_data.get(
+                                        "raw_arrangement_pattern"
+                                    ):
                                         ref_tempo = ""
-                                        if ref_track_data.get("global_feature_data") and isinstance(ref_track_data["global_feature_data"], dict):
-                                            tempo = ref_track_data["global_feature_data"].get("rhythm", {}).get("tempo")
+                                        if ref_track_data.get(
+                                            "global_feature_data"
+                                        ) and isinstance(
+                                            ref_track_data["global_feature_data"], dict
+                                        ):
+                                            tempo = (
+                                                ref_track_data["global_feature_data"]
+                                                .get("rhythm", {})
+                                                .get("tempo")
+                                            )
                                             if tempo:
                                                 ref_tempo = f" ({tempo:.0f} BPM)"
-                                        st.markdown(f"**Reference:** `{ref_track_data['smoothed_arrangement_pattern']}`{ref_tempo}")
+                                        st.markdown(
+                                            f"**Reference:** `{ref_track_data['smoothed_arrangement_pattern']}`{ref_tempo}"
+                                        )
                                     else:
                                         st.info("Reference pattern not available")
-                                
+
                                 # Individual visualizations
                                 viz_col1, viz_col2 = st.columns(2)
                                 with viz_col1:
-                                    if 'input_viz_fig' in locals():
-                                        st.pyplot(input_viz_fig, use_container_width=True)
+                                    if "input_viz_fig" in locals():
+                                        st.pyplot(
+                                            input_viz_fig, use_container_width=True
+                                        )
                                         plt.close(input_viz_fig)
                                     st.markdown("**Input Track Audio:**")
                                     if input_file:
                                         st.audio(input_file, format="audio/mp3")
 
                                 with viz_col2:
-                                    if 'ref_viz_fig' in locals():
+                                    if "ref_viz_fig" in locals():
                                         st.pyplot(ref_viz_fig, use_container_width=True)
                                         plt.close(ref_viz_fig)
                                     st.markdown("**Reference Track Audio:**")
@@ -653,13 +731,15 @@ else:
                         st.markdown("**AI Music Mentor Feedback**")
                         if not visual_only:
                             if feedback_error:
-                                st.error(f"Could not generate feedback: {feedback_error}")
+                                st.error(
+                                    f"Could not generate feedback: {feedback_error}"
+                                )
                                 st.info(
                                     "This might be because there are no training examples in the database yet."
                                 )
                             else:
                                 st.markdown(feedback)
-                                
+
                                 # Add inspiration track section after feedback
                                 # TODO: Re-enable for post-demo development
                                 # try:
@@ -667,23 +747,23 @@ else:
                                 #     similar_examples, user_upload, retrieval_info = rag_service.retrieve_similar_examples(
                                 #         user_upload_id=upload_id, k=1
                                 #     )
-                                #     
+                                #
                                 #     if similar_examples and len(similar_examples) > 0:
                                 #         top_example = similar_examples[0]
                                 #         reference_track = top_example.get("reference_track")
-                                #         
+                                #
                                 #         # Only show if we have a reference track (fully formed track)
                                 #         if reference_track:
                                 #             st.markdown("---")
                                 #             st.markdown("**🎵 Inspiration Track**")
-                                #             
+                                #
                                 #             track_name = Path(reference_track['file_path']).stem
                                 #             arrangement_pattern = reference_track.get('arrangement_pattern', 'Unknown')
-                                #             
+                                #
                                 #             st.write(f"**Track:** {track_name}")
                                 #             st.write(f"**Arrangement:** `{arrangement_pattern}`")
                                 #             st.write("Check this fully-formed track for arrangement inspiration - it has a similar vibe to yours!")
-                                #             
+                                #
                                 #             # Add audio player for the inspiration track
                                 #             try:
                                 #                 if os.path.exists(reference_track['file_path']):
@@ -694,13 +774,15 @@ else:
                                 #                     st.info("Audio file not found for this inspiration track")
                                 #             except Exception as audio_error:
                                 #                 st.info("Could not load audio for this track")
-                                #     
+                                #
                                 # except Exception as inspiration_error:
                                 #     # Silently skip inspiration track if there's an error
                                 #     pass
                         else:
                             st.success("Visual-only mode enabled")
-                            st.info("AI feedback skipped for faster processing. Uncheck 'Visual Only' in the sidebar to get feedback.")
+                            st.info(
+                                "AI feedback skipped for faster processing. Uncheck 'Visual Only' in the sidebar to get feedback."
+                            )
 
                 except Exception as e:
                     # Clear progress indicators on error
@@ -723,5 +805,6 @@ else:
         if not ref_file:
             st.warning("Please upload a reference track using the sidebar")
         if not visual_only and not text_input:
-            st.warning("Please describe what you need help with (or enable Visual Only mode)")
-
+            st.warning(
+                "Please describe what you need help with (or enable Visual Only mode)"
+            )

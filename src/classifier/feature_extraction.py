@@ -225,13 +225,15 @@ class AudioFeature:
         time_duration = librosa.frames_to_time(
             self.n_frames, sr=self.sr, hop_length=self.hop_length
         )
-        
+
         # Create simple 5-second segments starting from 0
-        segment_times = np.arange(0, time_duration + target_segment_seconds, target_segment_seconds)
-        
+        segment_times = np.arange(
+            0, time_duration + target_segment_seconds, target_segment_seconds
+        )
+
         # Ensure we don't go beyond the actual audio duration
         segment_times = segment_times[segment_times <= time_duration]
-        
+
         # Always end exactly at the audio duration
         if segment_times[-1] < time_duration:
             segment_times = np.append(segment_times, time_duration)
@@ -250,7 +252,7 @@ class AudioFeature:
         print(f"Expected segments (~5s each): {time_duration/5:.1f}")
         print(f"Actual segments created: {len(meter_grid_frames)-1}")
         print(f"Segment duration target: {target_segment_seconds:.1f}s")
-        
+
         segment_lengths = np.diff(
             librosa.frames_to_time(
                 meter_grid_frames, sr=self.sr, hop_length=self.hop_length
@@ -259,9 +261,11 @@ class AudioFeature:
         print(
             f"Segment lengths: min={segment_lengths.min():.1f}s, max={segment_lengths.max():.1f}s, mean={segment_lengths.mean():.1f}s"
         )
-        
+
         # Debug the actual segment times
-        segment_times = librosa.frames_to_time(meter_grid_frames, sr=self.sr, hop_length=self.hop_length)
+        segment_times = librosa.frames_to_time(
+            meter_grid_frames, sr=self.sr, hop_length=self.hop_length
+        )
         print(f"First 5 segment boundaries: {segment_times[:5]}")
         print(f"Last 5 segment boundaries: {segment_times[-5:]}")
 

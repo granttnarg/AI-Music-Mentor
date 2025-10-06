@@ -456,7 +456,9 @@ def show_similarity_viz_tab():
 
                         # Show similarity results using the actual returned tracks with scores
                         method_display = (
-                            "Input Training Tracks Only" if training_only else "All Tracks"
+                            "Input Training Tracks Only"
+                            if training_only
+                            else "All Tracks"
                         )
                         st.subheader(
                             f"Top Similar Tracks ({method_display} - {similarity_metric} metric)"

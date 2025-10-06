@@ -290,12 +290,12 @@ class ArrangementClassifier:
             # so actual segments should be len(meter_grid) - 1
             max_segments = len(audio_features.meter_grid) - 1
             actual_meters = min(max_segments, len(predicted_classes))
-            
+
             print(f"   Meter grid boundaries: {len(audio_features.meter_grid)} points")
             print(f"   Expected segments: {max_segments}")
             print(f"   Raw predictions: {len(predicted_classes)}")
             print(f"   Using {actual_meters} segments")
-            
+
             predicted_classes = predicted_classes[:actual_meters]
             confidence_scores = confidence_scores[:actual_meters]
 

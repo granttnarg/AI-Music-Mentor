@@ -434,7 +434,11 @@ class AudioRAGOperations:
             session.close()
 
     def update_training_example_feedback(
-        self, training_id: int, feedback_updates: list, genre: str | None = None, stage: str | None = None
+        self,
+        training_id: int,
+        feedback_updates: list,
+        genre: str | None = None,
+        stage: str | None = None,
     ):
         """Update feedback items for a training example."""
         session = self.db.get_session()
@@ -451,7 +455,7 @@ class AudioRAGOperations:
             # Update genre if provided
             if genre:
                 setattr(example, "genre", genre)
-                
+
             # Update stage if provided
             if stage:
                 setattr(example, "stage", stage)

@@ -70,11 +70,13 @@ def show_browse_edit_tab():
                 filtered_examples = [
                     ex for ex in filtered_examples if ex["genre"] == genre_filter
                 ]
-                
+
             # Stage filter
             if stage_filter != "All":
                 filtered_examples = [
-                    ex for ex in filtered_examples if ex.get("stage", "Half Finished") == stage_filter
+                    ex
+                    for ex in filtered_examples
+                    if ex.get("stage", "Half Finished") == stage_filter
                 ]
 
             # Search filter
@@ -298,7 +300,7 @@ def show_browse_edit_tab():
                         ),
                         key=f"genre_{example['id']}",
                     )
-                    
+
                     # Stage editing
                     STAGES = ["Sketch", "Half Finished", "Almost Finished"]
                     current_stage = example.get("stage", "Half Finished")
@@ -419,7 +421,10 @@ def show_browse_edit_tab():
                                 new_stage if new_stage != current_stage else None
                             )
                             db_ops.update_training_example_feedback(
-                                example["id"], feedback_updates, genre_to_update, stage_to_update
+                                example["id"],
+                                feedback_updates,
+                                genre_to_update,
+                                stage_to_update,
                             )
                             st.success("✅ Changes saved successfully!")
                             st.rerun()  # Refresh the page

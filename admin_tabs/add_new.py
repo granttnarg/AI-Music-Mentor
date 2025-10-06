@@ -91,7 +91,9 @@ def show_add_new_tab():
     with col2:
         st.subheader("Reference Track")
         ref_file = st.file_uploader(
-            "Upload reference track (finished/target)", type=["mp3", "wav", "aif"], key="reference"
+            "Upload reference track (finished/target)",
+            type=["mp3", "wav", "aif"],
+            key="reference",
         )
         if ref_file:
             st.audio(ref_file)
