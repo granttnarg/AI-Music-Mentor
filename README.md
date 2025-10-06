@@ -208,6 +208,11 @@ Access database directly:
 
 ## Screenshots
 
+### Main User Interface
+
+![Main UI Output](images/example-main-ui-output.png)
+_Complete user interface showing track upload, arrangement visualization, and AI feedback generation in action_
+
 ### Arrangement Classification Visualization
 
 ![Example Arrangement Analysis](visualizations/example-viz-4classes.png)
