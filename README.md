@@ -267,15 +267,15 @@ _Complete user interface showing track upload, arrangement visualization, and AI
 ![Example Arrangement Analysis](visualizations/example-viz-4classes.png)
 _CRNN model output showing automated section detection: O=Intro/Outro, A=Groove, B=Main Hook, C=Breakdown_
 
-### RAG System: Cosine Similarity Search
+### RAG System: Cosine Similarity Search (Admin Debug: 3D Viz for testing vector search results)
 
 ![Cosine Similarity Debug](images/cosine-similarity-debug-search.png)
 _Vector similarity search finding the most similar training examples, with interactive 3D embedding space exploration for debugging_
 
-### LLM Feedback Generation
+### LLM Feedback Generation (Admin Debug: Built in LLM output survey to evaluate text output overtime)
 
 ![LLM Evaluation Output](images/Qwen3-llm-evaluation-output-example.png)
-_Qwen3 LLM generating contextual, producer-style feedback using retrieved similar examples and track analysis_
+_Qwen3 was used LLM generating contextual, producer-style feedback using retrieved similar examples and track analysis, above is an example output of its evaluation overtime after prompt and dataset expansion_
 
 ## Key Features
 
