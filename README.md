@@ -2,6 +2,9 @@
 
 An advanced AI-powered music production assistant that analyzes your unfinished electronic music tracks and provides personalized arrangement advice using state-of-the-art RAG (Retrieval-Augmented Generation) technology, deep learning arrangement classification, and audio feature analysis.
 
+![System Architecture](images/ai-music-mentor-arch-diagram.png)
+_Complete system architecture: CRNN classification → RAG pipeline → Local LLM feedback generation_
+
 ## Why This Matters
 
 **The Problem**: Writer's block ranks in the top 3 challenges for electronic music producers across multiple industry surveys. When stuck on arrangement decisions, producers face two bad options:
