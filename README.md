@@ -6,6 +6,8 @@ An advanced AI-powered music production assistant that analyzes your unfinished 
 
 **[→ Read LEARNINGS.md](LEARNINGS.md)** - An in-depth technical analysis of my complete approach, covering every aspect of the system architecture, AI model design, RAG implementation, and key learnings from this intensive 1-month development sprint. Essential reading for recruiters and CTOs interested in my technical decision-making process.
 
+**[→ Demo Day Presentation](references/)** - Reference slides from the final demo presentation, providing a high-level overview of the project objectives, technical approach, and key results. Useful for understanding the project context and presentation format.
+
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-red.svg)](LICENSE)
 [![Built with Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-red.svg)](https://streamlit.io/)
@@ -148,7 +150,9 @@ Access database directly:
 ├── app.py                  # Main Streamlit User dashboard
 ├── admin.py                # Streamlit Admin dashboard with 4 tabs
 ├── main.py                 # Main App file
+├── config.py               # Configuration and environment settings
 ├── pyproject.toml          # Project dependencies and configuration
+├── LEARNINGS.md            # In-depth technical analysis and development insights
 ├── services/
 │   ├── audio_rag.py        # RAG system with LLM integration
 │   └── song_visualizer_service.py  # Waveform and arrangement visualization
@@ -170,15 +174,22 @@ Access database directly:
 ├── data/
 │   ├── raw/               # Raw training audio files
 │   ├── processed/         # Processed feature data
-│   ├── test/              # Test audio file
+│   ├── test/              # Test audio files
 │   ├── uploads/           # User uploaded files and session data
-│   └── batch_import/      # Training examples for batch processing
+│   ├── batch_import/      # Training examples for batch processing (21 examples)
+│   └── backups/           # Database backups and exports
+├── evaluations/           # Generated evaluation results and feedback logs
+├── images/                # Documentation images and screenshots
+├── info/                  # Additional project information
+├── logs/                  # Application and system logs
 ├── notebooks/             # Development and analysis notebooks
+├── references/            # Demo presentation slides and project proposals
 ├── scripts/               # Utility scripts for data processing
 ├── models/
-│   └── arrangement_classifier/  # Pre-trained arrangement classification models
-├── visualizations/         # Generated visualization outputs (cached)
-└── tests/                # Unit tests
+│   └── arrangement_classifier/  # Pre-trained models (3classes & 4classes)
+├── visualizations/        # Generated visualization outputs (cached)
+├── uploads/               # Legacy upload directory
+└── tests/                 # Unit tests
 ```
 
 ## How It Works
