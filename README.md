@@ -275,7 +275,7 @@ _Vector similarity search finding the most similar training examples, with inter
 ### LLM Feedback Generation (Admin Debug: Build in output survey tracking to evaluate text output overtime)
 
 ![LLM Evaluation Output](images/Qwen3-llm-evaluation-output-example.png)
-_Qwen3 was used LLM generating contextual, producer-style feedback using retrieved similar examples and track analysis, above his an example output of its evaluation overtime after prompt and dataset expansion_
+_Qwen3 was used LLM generating contextual, producer-style feedback using retrieved similar examples and track analysis, above is an example output of its evaluation overtime after prompt and dataset expansion_
 
 ## Key Features
 
