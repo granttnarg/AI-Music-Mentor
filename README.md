@@ -272,7 +272,7 @@ _CRNN model output showing automated section detection: O=Intro/Outro, A=Groove,
 ![Cosine Similarity Debug](images/cosine-similarity-debug-search.png)
 _Vector similarity search finding the most similar training examples, with interactive 3D embedding space exploration for debugging_
 
-### LLM Feedback Generation (Admin Debug: Build in output survey tracking to evaluate text output overtime)
+### LLM Feedback Generation (Admin Debug: Built in LLM output survey to evaluate text output overtime)
 
 ![LLM Evaluation Output](images/Qwen3-llm-evaluation-output-example.png)
 _Qwen3 was used LLM generating contextual, producer-style feedback using retrieved similar examples and track analysis, above is an example output of its evaluation overtime after prompt and dataset expansion_
