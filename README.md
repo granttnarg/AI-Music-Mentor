@@ -10,9 +10,11 @@ An advanced AI-powered music production assistant that analyzes your unfinished 
 
 ## ⚠️ Repository Notice
 
-**This repository has core components excluded and is not meant to be run from scratch.** It requires proprietary CRNN models and producer feedback data to operate fully. 
+**This repository has core components excluded and is not meant to be run from scratch.** It requires proprietary CRNN models and producer feedback data to operate fully.
 
-**However, you can set up and run `app.py` and `admin.py` to explore the UI and codebase structure** - you just won't be able to generate predictions or feedback without the missing models and data. The installation instructions below are useful for testing the repo architecture and understanding the implementation for learning purposes.
+**However, you can set up and run `app.py` and `admin.py` to explore the UI and codebase structure** - you just won't be able to generate predictions or feedback without the missing CRNN models and populated database with audio examples and producer feedback. The installation instructions below are useful for testing the repo architecture and understanding the implementation for learning purposes.
+
+**Please contact me privately via [LinkedIn](https://www.linkedin.com/in/grantthomas/) if you would like to know more about the complete implementation.**
 
 This repo serves as a **learning resource and portfolio piece** showcasing my final Data Science Retreat project from 2025.
 
@@ -254,14 +256,16 @@ _Qwen3 LLM generating contextual, producer-style feedback using retrieved simila
 ## Key Features
 
 ### **Core Intelligence**
+
 - **CRNN Classification**: Purpose-built deep learning model for electronic music arrangement analysis
 - **RAG-Powered Feedback**: Context-aware advice using expert database and local LLM inference
 - **Advanced Audio Analysis**: 15+ spectral, rhythmic, and tonal features with pattern recognition
 - **Multi-format Processing**: MP3, WAV, AIF/AIFF support with compressed arrangement notation
 
 ### **Analytics & Visualization**
+
 - **3D Similarity Space**: Interactive embedding exploration with t-SNE/UMAP for debugging
-- **Multiple Distance Metrics**: Cosine, Euclidean, Inner Product similarity calculations  
+- **Multiple Distance Metrics**: Cosine, Euclidean, Inner Product similarity calculations
 - **Feature Gap Analysis**: Technical comparison between input and reference tracks
 - **Admin Dashboard**: Training data management, batch processing, and system monitoring
 
@@ -306,8 +310,9 @@ print(f"Pattern: {pattern_result['smoothed_pattern']}")
 > **Key Results**: CRNN 4-class arrangement classification achieved 44-71% F1 scores across sections, with strongest performance on Intro/Outro (F1=0.665) and Breakdown (F1=0.707) detection.
 
 **CRNN 4-Class Performance:**
+
 - **O (Intro/Outro)**: Precision=0.707, Recall=0.629, F1=0.665
-- **A (Main Groove)**: Precision=0.441, Recall=0.519, F1=0.477  
+- **A (Main Groove)**: Precision=0.441, Recall=0.519, F1=0.477
 - **B (Breakdown)**: Precision=0.455, Recall=0.383, F1=0.416
 - **C (Low Energy)**: Precision=0.664, Recall=0.755, F1=0.707
 
