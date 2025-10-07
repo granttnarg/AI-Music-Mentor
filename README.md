@@ -2,9 +2,36 @@
 
 An advanced AI-powered music production assistant that analyzes your unfinished electronic music tracks and provides personalized arrangement advice using state-of-the-art RAG (Retrieval-Augmented Generation) technology, deep learning arrangement classification, and audio feature analysis.
 
+![System Architecture](images/ai-music-mentor-arch-diagram.png)
+_Complete system architecture: CRNN classification → RAG pipeline → Local LLM feedback generation_
+
+## Why This Matters
+
+**The Problem**: Writer's block ranks in the top 3 challenges for electronic music producers across multiple industry surveys. When stuck on arrangement decisions, producers face two bad options:
+
+- Generic online advice that doesn't address their specific track
+- AI tools that generate audio for them, removing creative control
+
+**The Gap**: Professional feedback from experienced producers costs €50-100 per track review, making it inaccessible for most bedroom producers and students who need it most.
+
+**The Solution**: AI-Music-Mentor provides instant, personalized arrangement feedback that:
+
+- Analyzes YOUR specific track structure and compares it to YOUR chosen reference
+- Gives actionable suggestions while keeping you in creative control
+- Costs $0 and responds in seconds, not days
+
+**Impact**: Producers can iterate faster, learn arrangement principles through feedback, and break through creative blocks without sacrificing artistic agency or spending hundreds on consulting.
+
 ## 📖 Development Deep Dive
 
-**[→ Read LEARNINGS.md](LEARNINGS.md)** - An in-depth technical analysis of my complete approach, covering every aspect of the system architecture, AI model design, RAG implementation, and key learnings from this intensive 1-month development sprint. Essential reading for recruiters and CTOs interested in my technical decision-making process.
+**[→ Read LEARNINGS.md](LEARNINGS.md)** - A comprehensive 4,000-word technical post-mortem covering:
+
+- **Architectural decisions**: Why global features vs. chunked embeddings, 3-class vs. 4-class models
+- **RAG implementation**: Cosine vs. Euclidean distance, LLM filtering, prompt engineering journey
+- **Evaluation methodology**: From 45% to 67% quality score through systematic iteration
+- **Honest reflection**: What worked, what failed, and why—with concrete examples
+
+**This document is essential reading for technical interviewers.** It demonstrates systematic problem-solving, rigorous evaluation, and the ability to learn from failure after a fast-paced MVP sprint.
 
 **[→ Demo Day Presentation](references/)** - Reference slides from the final demo presentation, providing a high-level overview of the project objectives, technical approach, and key results. Useful for understanding the project context and presentation format.
 
@@ -32,9 +59,6 @@ Upload your work-in-progress electronic music track alongside a reference track,
 - **Producer-Style Feedback**: Natural language advice in the style of experienced electronic music producers
 
 ## Technical Architecture
-
-![System Architecture](images/ai-music-mentor-arch-diagram.png)
-_Complete system architecture showing audio processing pipeline, RAG system, and feedback generation_
 
 This system combines multiple AI technologies:
 
