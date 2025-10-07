@@ -60,9 +60,6 @@ Upload your work-in-progress electronic music track alongside a reference track,
 
 ## Technical Architecture
 
-![System Architecture](images/ai-music-mentor-arch-diagram.png)
-_Complete system architecture showing audio processing pipeline, RAG system, and feedback generation_
-
 This system combines multiple AI technologies:
 
 - **Custom CRNN Model**: Deep learning classifier for automatic arrangement section detection
