@@ -10,7 +10,11 @@ An advanced AI-powered music production assistant that analyzes your unfinished 
 
 ## ⚠️ Repository Notice
 
-**This repository has core components excluded and is not meant to be run from scratch.** It requires proprietary CRNN models and producer feedback data to operate fully. This repo serves as a **learning resource and portfolio piece** showcasing my final Data Science Retreat project from 2025.
+**This repository has core components excluded and is not meant to be run from scratch.** It requires proprietary CRNN models and producer feedback data to operate fully. 
+
+**However, you can set up and run `app.py` and `admin.py` to explore the UI and codebase structure** - you just won't be able to generate predictions or feedback without the missing models and data. The installation instructions below are useful for testing the repo architecture and understanding the implementation for learning purposes.
+
+This repo serves as a **learning resource and portfolio piece** showcasing my final Data Science Retreat project from 2025.
 
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-red.svg)](LICENSE)
@@ -296,6 +300,18 @@ classifier = ArrangementClassifier()
 pattern_result = classifier.analyze_arrangement_structure(audio_path)
 print(f"Pattern: {pattern_result['smoothed_pattern']}")
 ```
+
+## Evaluation
+
+> **Key Results**: CRNN 4-class arrangement classification achieved 44-71% F1 scores across sections, with strongest performance on Intro/Outro (F1=0.665) and Breakdown (F1=0.707) detection.
+
+**CRNN 4-Class Performance:**
+- **O (Intro/Outro)**: Precision=0.707, Recall=0.629, F1=0.665
+- **A (Main Groove)**: Precision=0.441, Recall=0.519, F1=0.477  
+- **B (Breakdown)**: Precision=0.455, Recall=0.383, F1=0.416
+- **C (Low Energy)**: Precision=0.664, Recall=0.755, F1=0.707
+
+For comprehensive metrics, performance analysis, and detailed evaluation of the system's effectiveness, see **[LEARNINGS.md](LEARNINGS.md)** and the **[references/](references/)** directory containing demo presentation results.
 
 ## Future Improvements
 
