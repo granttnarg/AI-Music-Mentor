@@ -21,7 +21,14 @@ An advanced AI-powered music production assistant that analyzes your unfinished 
 
 ## 📖 Development Deep Dive
 
-**[→ Read LEARNINGS.md](LEARNINGS.md)** - An in-depth technical analysis of my complete approach, covering every aspect of the system architecture, AI model design, RAG implementation, and key learnings from this intensive 1-month development sprint. Essential reading for recruiters and CTOs interested in my technical decision-making process.
+**[→ Read LEARNINGS.md](LEARNINGS.md)** - A comprehensive 4,000-word technical post-mortem covering:
+
+- **Architectural decisions**: Why global features vs. chunked embeddings, 3-class vs. 4-class models
+- **RAG implementation**: Cosine vs. Euclidean distance, LLM filtering, prompt engineering journey
+- **Evaluation methodology**: From 45% to 67% quality score through systematic iteration
+- **Honest reflection**: What worked, what failed, and why—with concrete examples
+
+**This document is essential reading for technical interviewers.** It demonstrates systematic problem-solving, rigorous evaluation, and the ability to learn from failure after a fast-paced MVP sprint.
 
 **[→ Demo Day Presentation](references/)** - Reference slides from the final demo presentation, providing a high-level overview of the project objectives, technical approach, and key results. Useful for understanding the project context and presentation format.
 
