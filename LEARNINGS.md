@@ -1,7 +1,7 @@
 # Project Learnings: AI Music Mentor
 
-_Reflections on building a multi-modal AI system for music production feedback_  
-_Developed during Data Science Retreat bootcamp (September 2024)_  
+_Reflections on building a multi-modal AI system for music production feedback_
+_Developed during Data Science Retreat bootcamp (September 2024)_
 _Written: October 7, 2025_
 
 ## Overview
@@ -168,13 +168,13 @@ If starting over, I'd reverse the development order: begin with chunked, section
 
 ## 7. Key Technical Learnings
 
-**Multi-modal systems require careful orchestration:**  
+**Multi-modal systems require careful orchestration:**
 Integrating audio ML + semantic search + LLM isn't just bolting three models together. Each component's output becomes another component's input, so errors compound. I spent significant time debugging issues where the CRNN's mislabeled section caused RAG to retrieve irrelevant feedback, which then confused the LLM. Building robust error handling, debugging, and fallbacks for each stage is critical.
 
-**Prompt engineering deserves serious time investment:**  
+**Prompt engineering deserves serious time investment:**
 I initially underestimated this, thinking "I'll just write a clear prompt." In reality, I spent more time iterating on prompts than training models. Small changes—like mapping numerical features to words or adding specific examples—had massive impact on output quality. This isn't just "prompt hacking"; it's a core engineering skill for LLM systems.
 
-**Domain knowledge is your superpower:**  
+**Domain knowledge is your superpower:**
 My 15+ years of music production made this project possible. I could evaluate whether feedback was useful, understand why certain features mattered for arrangement detection, and design the GOT structure around how producers actually think. Without this domain expertise, I would have optimized for metrics that didn't correlate with real-world usefulness.
 
 **Every architectural decision has trade-offs:**
@@ -186,7 +186,7 @@ My 15+ years of music production made this project possible. I could evaluate wh
 
 There are no universally "correct" choices—only choices appropriate for your constraints and goals. Understanding these trade-offs explicitly made my decision-making more confident.
 
-**Evaluation is harder than building:**  
+**Evaluation is harder than building:**
 For creative AI systems, quantitative metrics don't tell the full story. A model with 80% accuracy might produce useless feedback, while 67% accuracy with thoughtful prompt engineering can be genuinely helpful. I learned to combine quantitative metrics (precision/recall), qualitative assessment (does this make sense?), and user validation (would a producer find this useful?) to get a complete picture.
 
 ---
@@ -199,4 +199,4 @@ More importantly, I learned how to architect, build, and evaluate a complex mult
 
 The project also reinforced that technical sophistication matters less than solving real problems for real users. My producer friends didn't care about CRNN architecture or RAG retrieval metrics—they cared whether the feedback helped them finish their tracks. That user-centric perspective will guide all my future AI work.
 
-Looking back, I'm proud of what I built in one month while learning these technologies for the first time. The imperfections aren't failures—they're documented learning opportunities and a roadmap for version 2.
+Looking back, I'm proud of what I built in one month while learning some of these technologies for the first time. The imperfections aren't failures—they're documented learning opportunities and a roadmap for version 2.

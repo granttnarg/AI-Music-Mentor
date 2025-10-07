@@ -8,6 +8,10 @@ An advanced AI-powered music production assistant that analyzes your unfinished 
 
 **[→ Demo Day Presentation](references/)** - Reference slides from the final demo presentation, providing a high-level overview of the project objectives, technical approach, and key results. Useful for understanding the project context and presentation format.
 
+## ⚠️ Repository Notice
+
+**This repository has core components excluded and is not meant to be run from scratch.** It requires proprietary CRNN models and producer feedback data to operate fully. This repo serves as a **learning resource and portfolio piece** showcasing my final Data Science Retreat project from 2025.
+
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: All Rights Reserved](https://img.shields.io/badge/License-All%20Rights%20Reserved-red.svg)](LICENSE)
 [![Built with Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-red.svg)](https://streamlit.io/)
@@ -24,13 +28,13 @@ Upload your work-in-progress electronic music track alongside a reference track,
 ## Technical Architecture
 
 ![System Architecture](images/ai-music-mentor-arch-diagram.png)
-*Complete system architecture showing audio processing pipeline, RAG system, and feedback generation*
+_Complete system architecture showing audio processing pipeline, RAG system, and feedback generation_
 
 This system combines multiple AI technologies:
 
 - **Custom CRNN Model**: Deep learning classifier for automatic arrangement section detection
 - **RAG Pipeline**: Vector similarity search through a database of expert-labeled training examples
-- **Audio Feature Extraction**: 15+ musical features using Librosa (spectral, rhythmic, tonal analysis)
+- **Audio Feature Extraction**: Musical features using Librosa (spectral, rhythmic, tonal analysis)
 - **LLM Integration**: Local inference using Ollama with LangChain for contextual feedback generation
 - **Vector Database**: PostgreSQL with embedding similarity search for track matching
 
@@ -197,7 +201,7 @@ Access database directly:
 ### 1. **Audio Processing Pipeline**
 
 - **Upload**: Your unfinished track (MP3/WAV/AIF) + reference track
-- **Feature Extraction**: 15+ musical features using Librosa (tempo, spectral centroid, energy, etc.)
+- **Feature Extraction**: Musical features using Librosa (tempo, spectral centroid, energy, etc.)
 - **Arrangement Classification**: Custom CRNN model identifies track sections:
   - **O**: Intro/Outro sections (DJ-friendly loops)
   - **A**: Groove sections (medium energy, steady patterns)
@@ -236,54 +240,32 @@ _CRNN model output showing automated section detection: O=Intro/Outro, A=Groove,
 ### RAG System: Cosine Similarity Search
 
 ![Cosine Similarity Debug](images/cosine-similarity-debug-search.png)
-_Vector similarity search in action: finding the most similar training examples based on audio feature embeddings_
+_Vector similarity search finding the most similar training examples, with interactive 3D embedding space exploration for debugging_
 
 ### LLM Feedback Generation
 
 ![LLM Evaluation Output](images/Qwen3-llm-evaluation-output-example.png)
 _Qwen3 LLM generating contextual, producer-style feedback using retrieved similar examples and track analysis_
 
-### 3D Similarity Space Visualization
-
-_Interactive exploration of track embeddings in high-dimensional space for debugging similarity search_
-
 ## Key Features
 
-### **Audio Intelligence**
+### **Core Intelligence**
+- **CRNN Classification**: Purpose-built deep learning model for electronic music arrangement analysis
+- **RAG-Powered Feedback**: Context-aware advice using expert database and local LLM inference
+- **Advanced Audio Analysis**: 15+ spectral, rhythmic, and tonal features with pattern recognition
+- **Multi-format Processing**: MP3, WAV, AIF/AIFF support with compressed arrangement notation
 
-- **Advanced Feature Extraction**: 15+ musical features (tempo, spectral centroid, MFCC, chroma, onset density)
-- **Custom CRNN Architecture**: Purpose-built for electronic music arrangement analysis
-- **Pattern Recognition**: Automatic detection of arrangement structures (O-A-B-C patterns)
-- **Multi-format Support**: MP3, WAV, AIF/AIFF file processing
-
-### **AI-Powered Feedback**
-
-- **RAG Pipeline**: Context-aware feedback using similar track examples from expert database
-- **Local LLM Integration**: Privacy-focused inference using Ollama (no cloud APIs)
-- **Producer-Style Voice**: Feedback mimics experienced electronic music producers
-- **Actionable Suggestions**: Prioritized, concrete advice for track development
-
-### **Advanced Analytics**
-
-- **3D Similarity Visualization**: Interactive embedding space exploration with t-SNE/UMAP
-- **Multiple Distance Metrics**: Cosine, Euclidean, Inner Product similarity calculations
-- **Feature Comparison Analysis**: Technical gaps between input and reference tracks
-- **Arrangement Pattern Analysis**: Compressed structure notation and timing analysis
-
-### **Production Tools**
-
-- **Admin Interface**: Comprehensive training data management and similarity debugging
-- **Batch Processing**: Automated analysis of multiple training examples
-- **Database Management**: PostgreSQL with vector similarity search optimization
-- **LangSmith Integration**: LLM tracing and observability for system monitoring
+### **Analytics & Visualization**
+- **3D Similarity Space**: Interactive embedding exploration with t-SNE/UMAP for debugging
+- **Multiple Distance Metrics**: Cosine, Euclidean, Inner Product similarity calculations  
+- **Feature Gap Analysis**: Technical comparison between input and reference tracks
+- **Admin Dashboard**: Training data management, batch processing, and system monitoring
 
 ### **Genre Specialization**
 
-Optimized for electronic music genres:
+Optimized for 4x4 music genres:
 
-- Deep Techno, Hard Techno, Progressive Techno
-- House, Tech House, Progressive House
-- Electro, Breakbeat, Drum & Bass
+- Deep Techno, Hard Techno, Electro, Tech House, House etc.
 
 ## Technical Details
 
