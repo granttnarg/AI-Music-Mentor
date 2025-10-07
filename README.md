@@ -14,7 +14,7 @@ An advanced AI-powered music production assistant that analyzes your unfinished 
 
 **However, you can set up and run `app.py` and `admin.py` to explore the UI and codebase structure** - you just won't be able to generate predictions or feedback without the missing CRNN models and populated database with audio examples and producer feedback. The installation instructions below are useful for testing the repo architecture and understanding the implementation for learning purposes.
 
-**Please contact me privately via [LinkedIn](https://www.linkedin.com/in/grantthomas/) if you would like to know more about the complete implementation.**
+**Please contact me privately via [LinkedIn](www.linkedin.com/in/grantwilliamthomas/) if you would like to know more about the complete implementation.**
 
 This repo serves as a **learning resource and portfolio piece** showcasing my final Data Science Retreat project from 2025.
 
