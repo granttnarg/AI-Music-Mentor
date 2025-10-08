@@ -40,6 +40,9 @@ For the vector search, I initially tested a minimal approach with just 5 feature
 
 ## 3. CRNN Fine-tuning for Arrangement Classification
 
+**Base Model Acknowledgment:**
+This work builds upon Dennis Dang's CRNN architecture originally designed for chorus detection ([original repo](https://github.com/dennisvdang/chorus-detection)). I adapted his base model and fine-tuned it for arrangement section classification, modifying the classification head to support four classes instead of binary classification. The core CNN + Bidirectional LSTM architecture remained largely intact, which provided a solid foundation for this music information retrieval task.
+
 **Data & Labeling:**
 I fine-tuned the CRNN using 30 techno tracks that I manually labeled into four arrangement sections: O (intro/outro), A (verse), B (chorus/drop), and C (bridge/breakdown). Each track was segmented into roughly 10-15 sections of 40 seconds or less, yielding approximately 300-450 labeled segments. Since segment lengths varied, I used zero-padding and masking to standardize inputs for batch training.
 

@@ -303,10 +303,12 @@ Optimized for 4x4 music genres:
 
 ### **Deep Learning Model**
 
-- **Architecture**: Custom CRNN (CNN + Bidirectional LSTM)
+- **Architecture**: Custom CRNN (CNN + Bidirectional LSTM) based on Dennis Dang's chorus detection model
 - **Input**: Meter-based audio features with hierarchical positional encoding
 - **Output**: 4-class arrangement section classification (O/A/B/C)
 - **Training**: Fine-tuned from binary onset detection model
+
+**Acknowledgment**: This model builds upon Dennis Dang's CRNN architecture for chorus detection. I adapted the base architecture and fine-tuned it with modifications to the model head for arrangement section classification. Special thanks to Dennis for open-sourcing his work: [original repo](https://github.com/dennisvdang/chorus-detection)
 
 ### **RAG System Components**
 
