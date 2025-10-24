@@ -2,7 +2,10 @@ from typing import List, Dict, Any, Tuple
 from db.operations import AudioRAGOperations
 from db.db import AudioRAGDatabase
 from db.models import TrainingExample, Track, UserUpload, Feedback
+from .feature_comparison_service import FeatureComparisonService
 import os
+import yaml
+from pathlib import Path
 
 # LangChain imports
 from langchain_core.prompts import ChatPromptTemplate
@@ -21,6 +24,9 @@ class AudioRAG:
 
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
+        # Load prompts from YAML
+        self.prompts = self._load_prompts()
+
         # Initialize RAG components
         self.prompt = self.create_prompt_template()
         self.output_parser = StrOutputParser()
@@ -28,6 +34,20 @@ class AudioRAG:
             model=llm_model, temperature=0.4, base_url="http://localhost:11434"
         )
         self.chain = self.prompt | self.llm | self.output_parser
+
+    def _load_prompts(self) -> Dict[str, str]:
+        """Load prompt templates from YAML configuration file"""
+        try:
+            # Get the project root directory (go up from services/)
+            project_root = Path(__file__).parent.parent
+            prompts_path = project_root / "config" / "prompts.yaml"
+            
+            with open(prompts_path, 'r', encoding='utf-8') as file:
+                return yaml.safe_load(file)
+        except Exception as e:
+            print(f"Error loading prompts from YAML: {e}")
+            # Fallback to empty dict - methods will handle missing prompts
+            return {}
 
     @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
@@ -192,127 +212,6 @@ class AudioRAG:
         finally:
             session.close()
 
-    def create_feature_comparison(
-        self, input_features: Dict, ref_features: Dict
-    ) -> str:
-        """
-        Create a comparative analysis between input and reference track features
-        """
-        if not input_features or not ref_features:
-            return "Feature comparison not available - missing feature data."
-
-        comparison = "## Analysis Against Your Reference Track:\n\n"
-
-        # Helper function to describe differences
-        def describe_diff(input_val, ref_val, metric_name, unit=""):
-            if input_val is None or ref_val is None:
-                return f"  - {metric_name}: Data not available\n"
-
-            diff = input_val - ref_val
-            diff_pct = (diff / ref_val * 100) if ref_val != 0 else 0
-
-            if abs(diff_pct) < 10:  # Less than 10% difference
-                return f"  - {metric_name}: Very similar ({input_val:.2f}{unit} vs {ref_val:.2f}{unit})\n"
-            elif diff > 0:
-                magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
-                return f"  - {metric_name}: Your track is {magnitude} higher ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, +{diff_pct:.0f}%)\n"
-            else:
-                magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
-                return f"  - {metric_name}: Your track is {magnitude} lower ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, {diff_pct:.0f}%)\n"
-
-        # Rhythm comparison
-        rhythm_input = input_features.get("rhythm", {})
-        rhythm_ref = ref_features.get("rhythm", {})
-
-        if rhythm_input and rhythm_ref:
-            comparison += "**Rhythmic Character:**\n"
-            comparison += describe_diff(
-                rhythm_input.get("tempo"), rhythm_ref.get("tempo"), "Tempo", " BPM"
-            )
-            comparison += describe_diff(
-                rhythm_input.get("onset_density"),
-                rhythm_ref.get("onset_density"),
-                "Rhythmic Activity",
-                " events/sec",
-            )
-            comparison += describe_diff(
-                rhythm_input.get("beat_strength"),
-                rhythm_ref.get("beat_strength"),
-                "Beat Presence",
-                "",
-            )
-            comparison += "\n"
-
-        # Energy comparison
-        energy_input = input_features.get("energy", {})
-        energy_ref = ref_features.get("energy", {})
-
-        if energy_input and energy_ref:
-            comparison += "**Energy Profile:**\n"
-            comparison += describe_diff(
-                energy_input.get("dynamic_range"),
-                energy_ref.get("dynamic_range"),
-                "Dynamic Range",
-                "",
-            )
-            comparison += describe_diff(
-                energy_input.get("average_energy"),
-                energy_ref.get("average_energy"),
-                "Overall Intensity",
-                "",
-            )
-            comparison += describe_diff(
-                energy_input.get("peak_density"),
-                energy_ref.get("peak_density"),
-                "Energy Peaks",
-                " /sec",
-            )
-            comparison += "\n"
-
-        # Frequency/EQ comparison
-        freq_input = input_features.get("frequency", {})
-        freq_ref = ref_features.get("frequency", {})
-
-        if freq_input and freq_ref:
-            comparison += "**Frequency Distribution:**\n"
-            comparison += describe_diff(
-                freq_input.get("low_proportion"),
-                freq_ref.get("low_proportion"),
-                "Bass Content",
-                "%",
-            )
-            comparison += describe_diff(
-                freq_input.get("mid_proportion"),
-                freq_ref.get("mid_proportion"),
-                "Midrange Content",
-                "%",
-            )
-            comparison += describe_diff(
-                freq_input.get("high_proportion"),
-                freq_ref.get("high_proportion"),
-                "Treble Content",
-                "%",
-            )
-            comparison += "\n"
-
-        # Spectral comparison
-        spectral_input = input_features.get("spectral", {})
-        spectral_ref = ref_features.get("spectral", {})
-
-        if spectral_input and spectral_ref:
-            comparison += "**Tonal Character:**\n"
-            comparison += describe_diff(
-                spectral_input.get("avg_brightness"),
-                spectral_ref.get("avg_brightness"),
-                "Overall Brightness",
-                " Hz",
-            )
-            comparison += "\n"
-
-        comparison += "This analysis describes the measurable differences between your input track and reference track to provide context for the feedback below.\n\n"
-
-        return comparison
-
     def rank_feedback_by_relevance(
         self, feedback_items: List[Dict], user_question: str, user_genre: str
     ) -> List[Dict]:
@@ -336,23 +235,21 @@ class AudioRAG:
                 feedback_text = feedback.get("text", "")
                 feedback_type = feedback.get("type", "general")
 
-                # Create ranking prompt
-                ranking_prompt = f"""Rate how relevant this feedback is to the user's question. Use the full 1-10 scale:
-
-                User Question: "{user_question}"
-                User Genre: {user_genre} 
-                Feedback Type: {feedback_type}
-                Feedback Text: "{feedback_text}"
-
-                Scoring guidelines:
-                - 1-3: Completely unrelated to the question (wrong topic entirely)
-                - 4-6: Somewhat related but doesn't directly address the question  
-                - 7-9: Directly addresses the question and would help solve the problem
-                - 10: Perfect match - exactly what the user needs
-
-                Be decisive. Don't default to middle scores. If this feedback doesn't directly solve their specific problem, score it low.
-
-                Score (1-10):"""
+                # Create ranking prompt from YAML
+                ranking_template = self.prompts.get('feedback_ranking', {}).get('template', '')
+                if not ranking_template:
+                    # Fallback if YAML not available
+                    ranking_template = """Rate this feedback (1-10): 
+                    Question: "{user_question}"
+                    Feedback: "{feedback_text}"
+                    Score:"""
+                
+                ranking_prompt = ranking_template.format(
+                    user_question=user_question,
+                    user_genre=user_genre,
+                    feedback_type=feedback_type,
+                    feedback_text=feedback_text
+                )
 
                 try:
                     print(f"\nDEBUG: Scoring feedback: '{feedback_text[:60]}...'")
@@ -515,125 +412,11 @@ class AudioRAG:
         """
         Create a LangChain prompt template for music feedback generation
         """
-        template = """You are an AI music mentor and professional music producer. Your tone is supportive, casual, humourous and constructive.
-
-                Primary goal: Help the user overcome writer's block by providing exactly 2 concrete, actionable suggestions that move their track forward. You are not trying to complete their track or provide a comprehensive roadmap - just give them the 2 most impactful, specific ideas to break through their current sticking point and continue creating. Keep feedback focused and digestible.
-
-                The reference track serves as a directional guide, NOT a rigid template. The goal is to move the input track in that musical direction while respecting the track's current state and ensuring all changes make musical sense for where the track currently is.
-
-                Track Section Definitions - USE THESE EXACT TERMS:
-                - O = Intro/Outro sections: simple loops, often stripped-down rhythmic loops, setting the foundation for DJ mixing
-                - A = Groove sections: medium energy core groove content with steady rhythmic patterns, usually leading into B sections and keeping the track moving forward
-                - B = Main Hook sections: high-energy memorable groove sections with prominent melodies, catchy rhythmic motifs, or increased mid-frequency content
-                - C = Breakdown sections: transitional or ambient parts with minimal or no drums, often used for emotional peaks or breaks from the main groove
-
-                PATTERN INTERPRETATION:
-                - If input track pattern is "O": Track contains ONLY intro/outro material. No A, B, or C sections exist yet.
-                - If input track pattern is "A": Track contains ONLY groove material. No B or C sections exist yet.
-                - If input track pattern is "O-A": Track has intro/outro material followed by groove material. No B or C sections exist yet.
-                - Only suggest adding sections that don't already exist, never extending or modifying sections that aren't there.
-
-                CRITICAL: Always use these exact section names
-                - Use full section names with optional letter clarification: "Groove sections (A)", "Main Hook sections (B)", etc.
-                - Acceptable: "your 2nd Groove section", "the first Main Hook section (B)", "Breakdown sections (C)", "trim the last Main Hook section by 4 chunks"
-                - Not acceptable: "B sections", "A sections", "the B", "your A section"
-
-                Arrangement Guidance:
-                Always use the reference track's structure as your primary guide when analyzing or suggesting an arrangement.
-
-                You may also reference the common techno track patterns below, as they represent popular and functional choices for engaging the dancefloor.
-
-                When referencing these patterns, explain why they work (e.g., how tension builds, how breakdowns add contrast, how O sections aid DJ mixing).
-
-                Techno Tracks typically start and end with an O or A section: a stripped groove that DJs can easily mix in and out.
-
-                B sections work best after A (gradual build into a drop) or C (impactful re-entry after a breakdown).
-
-                Common Techno Track Patterns:
-                - O–A–B–C–B–A–O → Builds to high energy, drops into a memorable breakdown, then re-energizes before winding down. "Orbital – Chime" is a great example of this, ending with the chorus and short outro.
-                - O–A–B–C–A–B–O → Builds to high energy, uses an emotive breakdown, recalls the chorus energy near the end. "Laurent Garnier – The Man With The Red Face" a perfect example of this big build emotive breakdown gradually building back to the chorus.
-                - O–A–A–B–B–A–O → Gradual climb to a strong mid-track peak, then a taper down; best with hypnotic grooves where breakdowns may interrupt flow. - "Robert Hood - Rhythm of vision" is good example of this style of building track.
-                - O–A–B–A–B–A–B–O → Alternates between medium and high energy, playing with tension over a long, dynamic journey. "Jeff Mills - The Bells" is a good example of this structure.
-
-                If it makes sense for your arrangement advice, you may mention only 1 of the classic techno tracks by artist and name from the common techno patterns above, suggesting the user checks out that track for more inspiration.
-
-                Input:
-                - User track stage/state: {stage} (sketch, half-finished, almost finished)
-                - Genre: {genre}
-                - Input track features: {input_features} (use this to describe the track's current characteristics and identify potential problems)
-                - Reference track features: {ref_features}
-                - Feature comparison analysis: {feature_comparison} (use this to understand specific gaps between input and reference, and guide suggestions for bridging those gaps toward the reference direction, not exact replication)
-                - Input track pattern: {input_pattern} - THIS IS YOUR PRIMARY FOCUS
-                - Input raw pattern: {input_raw_pattern} (detailed timing - use this ONLY to identify unusually long/short sections, not for suggestions)
-                - Reference track pattern: {reference_pattern} (inspiration only - use for creative ideas, not rigid copying)
-                - Reference raw pattern: {reference_raw_pattern} (reference timing for creative inspiration only)
-                - User question: {question}
-
-                IMPORTANT TIMING AND PATTERN NOTES:
-                - Always reference the COMPRESSED pattern of the input track when suggesting changes
-                - Use the RAW pattern only to identify timing issues (e.g., "your B section is quite long at 12 chunks/48 bars" or "the final O is very short at 2 chunks/8 bars")
-                - When suggesting changes, speak in 4-bar chunks: "add 2 chunks (8 bars) after the A" or "trim the B section by 3 chunks (12 bars)"
-                - Never reference raw pattern numbers in suggestions (don't say "change 12B to 8B" - say "trim the B section by 4 chunks")
-
-                IMPORTANT TO TYPE OF FEEDBACK: Stay focused on what the user is asking for. If they ask for mix/EQ help, only give mix advice. If they ask for arrangement help, only give arrangement advice. Don't add other types of feedback unless specifically requested.
-                - Feedback examples: {examples}
-
-                Instructions:
-                1. Internally, reason using a Graph of Thought structure:
-                - Nodes = track sections (O, A, B, C) with attributes:
-                    - Energy, groove, eq and arrangement characteristics from features
-                    - Differences from reference track
-                    - Positive aspects that are already working
-                    - Musical reasoning for potential improvements
-                - Edges = suggested improvements or actions:
-                    - Types: "add section", "extend section", "adjust energy", "modify groove", "mix advice", "suggest classic track for arrangement inspiration"
-                    - Only suggest changes consistent with the user's current pattern
-                    - Include reasoning for each suggestion based on features, reference track, and relevant feedback examples
-                2. Filter feedback examples using feature and pattern similarity:
-                - Only use examples relevant to the current input track, you can use the {input_features} and {input_pattern} as a guide here.
-                - Extract the communication style, tone, and personality from the feedback examples
-                - Adopt the producer's voice: use their vocabulary patterns, phrasing style, and approach to giving feedback
-                - Integrate actionable advice from examples into your reasoning
-                3. Generate readable, user-facing feedback:
-                - Begin with a descriptive, supportive analysis of the user's track, highlighting strengths and differences from the reference
-                - Provide section-by-section guidance, referencing only sections present in the input or reference pattern
-                - Explain *why* each suggested change is musically helpful, using natural producer language
-                - Frame suggestions using the producer's typical phrasing patterns (e.g., their preferred way of suggesting changes)
-                - Organize feedback by relevant categories based on the user question (e.g., Arrangement, Energy, Rhythm, Mix)
-                - Reference relevant feedback examples if they support your advice
-                - When using technical analysis, translate to producer language:
-                    "onset_density too high" → "simplify the drum pattern"
-                    "spectral_centroid low" → "add some high-end sparkle"
-                    "mid-range heavy" → "carve space around 200Hz"
-
-                Critical rules:
-                - STRICTLY only reference sections that actually exist in the input track pattern. If input track is "O", it has ONLY intro/outro material and NO other sections exist yet.
-                - Do not suggest extending or modifying non-existent sections (e.g., if input is "O", don't mention "extending the B section")
-                - Do not invent arrangement details or instruments not present in examples
-                - Only use feedback examples that are relevant based on feature and pattern similarity
-                - Keep all advice musically grounded and actionable
-                - Maintain the producer's authentic voice and tone throughout your response
-                - NEVER reference examples by number (e.g., "Example 1", "Example 3") in your output
-                - Use clear, accessible language instead of raw technical terms (e.g., "peak_density" → "rhythmic intensity", "spectral_centroid" → "brightness")
-                - If suggesting EQ changes, provide specific frequency ranges and techniques
-                - Focus on the 2 most impactful changes, not a comprehensive overhaul
-                - NEVER use technical analysis terms in output: no "onset density", "beat strength", "spectral centroid"
-                - Always translate: "onset density too high" → "drum pattern feels busy", "low beat strength" → "kick needs more punch"
-
-                Output:
-                - A readable, structured feedback report for the user, including:
-                - A warm casaul greeting complimenting their track mentioning the {stage} and {genre}
-                - Descriptive musical analysis of the track
-                - Exactly 2 numbered suggestions with clear reasoning
-                - Section-specific advice (arrangement, energy, rhythm, mix) - only include sections relevant to the user question: {question}
-                - When describing arrangment advice use the full section names with optional letter clarification: "Groove sections (A)","Main Hook sections (B)", etc.
-                - Musical reasoning behind suggestions
-                - Actionable steps based on relevant feedback examples only if they make sense
-                - A 'Pro-tip' relevant to their track
-                - End with supportive encouragement under the heading "FINAL THOUGHTS" with a clear call-to-action encouraging the user to work on their track and come back with a new version for more feedback or producer advice.
-                -
-                """
-
+        template = self.prompts.get('feedback_generation', {}).get('template', '')
+        if not template:
+            print("Warning: Could not load feedback_generation template from YAML, using fallback")
+            template = "You are an AI music mentor. Provide feedback on: {question}"
+        
         return ChatPromptTemplate.from_template(template)
 
     def check_ollama_connection(self) -> bool:
@@ -774,7 +557,7 @@ class AudioRAG:
                 print(f"DEBUG: Ref feature keys: {list(ref_features.keys())}")
 
             # Create feature comparison
-            feature_comparison = self.create_feature_comparison(
+            feature_comparison = FeatureComparisonService.create_feature_comparison(
                 input_features, ref_features
             )
             print(f"DEBUG: Feature comparison length: {len(feature_comparison)} chars")
