@@ -6,7 +6,8 @@ from langchain_ollama import ChatOllama
 from .prompt_loader import PromptLoader
 import os
 
-class RagTextFormatter():
+
+class RagTextFormatter:
     def __init__(self, db_operations: AudioRAGOperations):
         self.db_operations = db_operations
         self.prompts = PromptLoader._load_prompts()
@@ -35,7 +36,9 @@ class RagTextFormatter():
                 feedback_type = feedback.get("type", "general")
 
                 # Create ranking prompt from YAML
-                ranking_template = self.prompts.get('feedback_ranking', {}).get('template', '')
+                ranking_template = self.prompts.get("feedback_ranking", {}).get(
+                    "template", ""
+                )
                 if not ranking_template:
                     # Fallback if YAML not available
                     ranking_template = """Rate this feedback (1-10):
@@ -47,7 +50,7 @@ class RagTextFormatter():
                     user_question=user_question,
                     user_genre=user_genre,
                     feedback_type=feedback_type,
-                    feedback_text=feedback_text
+                    feedback_text=feedback_text,
                 )
 
                 try:
@@ -106,7 +109,7 @@ class RagTextFormatter():
             # Fallback to first 2 feedback pieces
             return feedback_items[:2]
 
-    def clean_llm_output(self,text: str) -> str:
+    def clean_llm_output(self, text: str) -> str:
         """
         Remove <think> tags and their content from LLM output
         """

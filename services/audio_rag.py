@@ -15,6 +15,7 @@ from langchain_ollama import ChatOllama
 # LangSmith imports
 from langsmith import traceable
 
+
 class AudioRAG:
     def __init__(self, db: AudioRAGDatabase, llm_model: str = "qwen3:8b"):
         self.db = db
@@ -25,7 +26,6 @@ class AudioRAG:
 
         # Load prompts from YAML
         self.prompts = PromptLoader._load_prompts()
-
 
         # Initialize RAG components
         self.prompt = self.create_prompt_template()
@@ -303,9 +303,11 @@ class AudioRAG:
         """
         Create a LangChain prompt template for music feedback generation
         """
-        template = self.prompts.get('feedback_generation', {}).get('template', '')
+        template = self.prompts.get("feedback_generation", {}).get("template", "")
         if not template:
-            print("Warning: Could not load feedback_generation template from YAML, using fallback")
+            print(
+                "Warning: Could not load feedback_generation template from YAML, using fallback"
+            )
             template = "You are an AI music mentor. Provide feedback on: {question}"
         return ChatPromptTemplate.from_template(template)
 

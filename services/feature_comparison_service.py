@@ -1,25 +1,26 @@
 from typing import Dict
 
+
 class FeatureComparisonService:
-      @staticmethod
-      def describe_diff(input_val, ref_val, metric_name, unit=""):
-            if input_val is None or ref_val is None:
-                return f"  - {metric_name}: Data not available\n"
+    @staticmethod
+    def describe_diff(input_val, ref_val, metric_name, unit=""):
+        if input_val is None or ref_val is None:
+            return f"  - {metric_name}: Data not available\n"
 
-            diff = input_val - ref_val
-            diff_pct = (diff / ref_val * 100) if ref_val != 0 else 0
+        diff = input_val - ref_val
+        diff_pct = (diff / ref_val * 100) if ref_val != 0 else 0
 
-            if abs(diff_pct) < 10:  # Less than 10% difference
-                return f"  - {metric_name}: Very similar ({input_val:.2f}{unit} vs {ref_val:.2f}{unit})\n"
-            elif diff > 0:
-                magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
-                return f"  - {metric_name}: Your track is {magnitude} higher ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, +{diff_pct:.0f}%)\n"
-            else:
-                magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
-                return f"  - {metric_name}: Your track is {magnitude} lower ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, {diff_pct:.0f}%)\n"
+        if abs(diff_pct) < 10:  # Less than 10% difference
+            return f"  - {metric_name}: Very similar ({input_val:.2f}{unit} vs {ref_val:.2f}{unit})\n"
+        elif diff > 0:
+            magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
+            return f"  - {metric_name}: Your track is {magnitude} higher ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, +{diff_pct:.0f}%)\n"
+        else:
+            magnitude = "significantly" if abs(diff_pct) > 30 else "moderately"
+            return f"  - {metric_name}: Your track is {magnitude} lower ({input_val:.2f}{unit} vs {ref_val:.2f}{unit}, {diff_pct:.0f}%)\n"
 
-      @staticmethod
-      def create_feature_comparison(input_features: Dict, ref_features: Dict) -> str:
+    @staticmethod
+    def create_feature_comparison(input_features: Dict, ref_features: Dict) -> str:
         """
         Create a comparative analysis between input and reference track features
         """
