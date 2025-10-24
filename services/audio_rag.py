@@ -3,9 +3,9 @@ from db.operations import AudioRAGOperations
 from db.db import AudioRAGDatabase
 from db.models import TrainingExample, Track, UserUpload, Feedback
 from .feature_comparison_service import FeatureComparisonService
+from .prompt_loader import PromptLoader
+from .rag_text_formatter import RagTextFormatter
 import os
-import yaml
-from pathlib import Path
 
 # LangChain imports
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,7 +14,6 @@ from langchain_ollama import ChatOllama
 
 # LangSmith imports
 from langsmith import traceable
-
 
 class AudioRAG:
     def __init__(self, db: AudioRAGDatabase, llm_model: str = "qwen3:8b"):
@@ -25,7 +24,8 @@ class AudioRAG:
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
         # Load prompts from YAML
-        self.prompts = self._load_prompts()
+        self.prompts = PromptLoader._load_prompts()
+
 
         # Initialize RAG components
         self.prompt = self.create_prompt_template()
@@ -34,20 +34,6 @@ class AudioRAG:
             model=llm_model, temperature=0.4, base_url="http://localhost:11434"
         )
         self.chain = self.prompt | self.llm | self.output_parser
-
-    def _load_prompts(self) -> Dict[str, str]:
-        """Load prompt templates from YAML configuration file"""
-        try:
-            # Get the project root directory (go up from services/)
-            project_root = Path(__file__).parent.parent
-            prompts_path = project_root / "config" / "prompts.yaml"
-            
-            with open(prompts_path, 'r', encoding='utf-8') as file:
-                return yaml.safe_load(file)
-        except Exception as e:
-            print(f"Error loading prompts from YAML: {e}")
-            # Fallback to empty dict - methods will handle missing prompts
-            return {}
 
     @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
@@ -212,101 +198,6 @@ class AudioRAG:
         finally:
             session.close()
 
-    def rank_feedback_by_relevance(
-        self, feedback_items: List[Dict], user_question: str, user_genre: str
-    ) -> List[Dict]:
-        """
-        Use a small LLM to rank feedback items by relevance to user question
-        Returns top-ranked feedback pieces
-        """
-        if not feedback_items or len(feedback_items) <= 2:
-            return feedback_items  # If we have 2 or fewer, use all
-
-        try:
-            # Initialize small, fast model for ranking
-            ranking_llm = ChatOllama(
-                model="llama3.2:latest",  # Use available model for ranking
-                temperature=0.0,  # Zero temperature for consistent scoring
-            )
-
-            scored_feedback = []
-
-            for feedback in feedback_items:
-                feedback_text = feedback.get("text", "")
-                feedback_type = feedback.get("type", "general")
-
-                # Create ranking prompt from YAML
-                ranking_template = self.prompts.get('feedback_ranking', {}).get('template', '')
-                if not ranking_template:
-                    # Fallback if YAML not available
-                    ranking_template = """Rate this feedback (1-10): 
-                    Question: "{user_question}"
-                    Feedback: "{feedback_text}"
-                    Score:"""
-                
-                ranking_prompt = ranking_template.format(
-                    user_question=user_question,
-                    user_genre=user_genre,
-                    feedback_type=feedback_type,
-                    feedback_text=feedback_text
-                )
-
-                try:
-                    print(f"\nDEBUG: Scoring feedback: '{feedback_text[:60]}...'")
-                    print(f"DEBUG: Feedback type: {feedback_type}")
-                    print(f"DEBUG: User question: '{user_question[:60]}...'")
-
-                    # Get relevance score from small LLM
-                    response = ranking_llm.invoke(ranking_prompt)
-                    score_text = response.content.strip()
-                    print(f"DEBUG: Raw LLM response: '{score_text}'")
-
-                    # Extract numeric score
-                    import re
-
-                    score_match = re.search(r"\b([1-9]|10)\b", score_text)
-                    score = (
-                        int(score_match.group(1)) if score_match else 5
-                    )  # Default to 5 if parsing fails
-
-                    print(f"DEBUG: Extracted score: {score}")
-
-                    scored_feedback.append({"feedback": feedback, "score": score})
-
-                except Exception as e:
-                    print(f"ERROR: Failed to score feedback: {e}")
-                    print(f"DEBUG: Feedback text was: '{feedback_text}'")
-                    # Fallback: give average score
-                    scored_feedback.append({"feedback": feedback, "score": 5})
-
-            # Sort by score and return top pieces
-            scored_feedback.sort(key=lambda x: x["score"], reverse=True)
-            top_feedback = [
-                item["feedback"] for item in scored_feedback[:2]
-            ]  # Top 2 most relevant
-
-            print(
-                f"\n🎯 RANKING RESULTS: Scored {len(feedback_items)} feedback pieces, selected top {len(top_feedback)}"
-            )
-            print("=" * 80)
-            for i, item in enumerate(scored_feedback):  # Show ALL scores for debugging
-                feedback_text = item["feedback"].get("text", "No text")[:70]
-                feedback_type = item["feedback"].get("type", "General")
-                selected = "✅ SELECTED" if i < 2 else "❌ rejected"
-                print(
-                    f"#{i+1:2d} | Score: {item['score']:2d} | {selected} | Type: {feedback_type}"
-                )
-                print(f"     | Text: {feedback_text}...")
-                print(f"     |")
-            print("=" * 80)
-
-            return top_feedback
-
-        except Exception as e:
-            print(f"ERROR: Feedback ranking failed: {e}")
-            # Fallback to first 2 feedback pieces
-            return feedback_items[:2]
-
     @traceable
     def format_examples_for_prompt(
         self,
@@ -416,38 +307,7 @@ class AudioRAG:
         if not template:
             print("Warning: Could not load feedback_generation template from YAML, using fallback")
             template = "You are an AI music mentor. Provide feedback on: {question}"
-        
         return ChatPromptTemplate.from_template(template)
-
-    def check_ollama_connection(self) -> bool:
-        """
-        Check if Ollama server is running and accessible
-        """
-        try:
-            # Simple test to see if we can reach the LLM
-            test_response = self.llm.invoke("Hello")
-            return True
-        except Exception as e:
-            print(f"Ollama connection failed: {e}")
-            print("Make sure Ollama is running with: ollama serve")
-            print(f"And that the model '{self.llm_model}' is available")
-            return False
-
-    def clean_llm_output(self, text: str) -> str:
-        """
-        Remove <think> tags and their content from LLM output
-        """
-        import re
-
-        # Remove anything between <think> and </think> tags (case insensitive, multiline)
-        cleaned = re.sub(
-            r"<think>.*?</think>", "", text, flags=re.IGNORECASE | re.DOTALL
-        )
-        # Clean up any extra whitespace that might be left
-        cleaned = re.sub(
-            r"\n\s*\n\s*\n", "\n\n", cleaned
-        )  # Replace multiple newlines with double newlines
-        return cleaned.strip()
 
     @traceable
     def generate_feedback(
@@ -590,19 +450,34 @@ class AudioRAG:
         print(f"DEBUG: Chain input keys: {list(chain_input.keys())}")
         for key, value in chain_input.items():
             print(f"DEBUG: {key}: {type(value)} - {str(value)[:100]}...")
+        rag_text_formatter = RagTextFormatter(self.operations)
 
         # Generate feedback using the pre-initialized RAG chain
         try:
             feedback = self.chain.invoke(chain_input)
             # Clean the feedback to remove <think> tags and prepend retrieval warning
-            cleaned_feedback = self.clean_llm_output(feedback)
+            cleaned_feedback = rag_text_formatter.clean_llm_output(feedback)
             return retrieval_warning + cleaned_feedback
         except Exception as e:
             print(f"Error generating feedback with LLM: {e}")
             # Fallback to returning formatted prompt if LLM fails
             fallback_feedback = self.prompt.format(**chain_input)
-            cleaned_fallback = self.clean_llm_output(fallback_feedback)
+            cleaned_fallback = rag_text_formatter.clean_llm_output(fallback_feedback)
             return retrieval_warning + cleaned_fallback
+
+    def _check_ollama_connection(self) -> bool:
+        """
+        Check if Ollama server is running and accessible
+        """
+        try:
+            # Simple test to see if we can reach the LLM
+            test_response = self.llm.invoke("Hello")
+            return True
+        except Exception as e:
+            print(f"Ollama connection failed: {e}")
+            print("Make sure Ollama is running with: ollama serve")
+            print(f"And that the model '{self.llm_model}' is available")
+            return False
 
 
 # Example usage
