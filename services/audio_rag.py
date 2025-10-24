@@ -79,12 +79,9 @@ class AudioRAG:
                 limit=k,  # No need to multiply since we're pre-filtering
             )
 
-            print(
-                f"DEBUG: Found {len(similar_tracks)} similar tracks with training examples"
-            )
+            print(f"🔍 Found {len(similar_tracks)} tracks with training examples")
 
             if not similar_tracks:
-                print("DEBUG: No similar tracks with training examples found")
                 return (
                     [],
                     user_upload,
@@ -264,8 +261,9 @@ class AudioRAG:
         )
         user_genre = getattr(user_upload, "genre", "electronic")
 
-        print(f"DEBUG: Ranking {len(all_feedback)} total feedback pieces...")
-        ranked_feedback = self.rank_feedback_by_relevance(
+        # Use the formatter for ranking
+        formatter = RagTextFormatter(self.operations)
+        ranked_feedback = formatter.rank_feedback_by_relevance(
             all_feedback, user_question, user_genre
         )
 
@@ -411,18 +409,10 @@ class AudioRAG:
                     features if features and not hasattr(features, "__table__") else {}
                 )
 
-            print(f"DEBUG: Input features available: {bool(input_features)}")
-            print(f"DEBUG: Ref features available: {bool(ref_features)}")
-            if input_features:
-                print(f"DEBUG: Input feature keys: {list(input_features.keys())}")
-            if ref_features:
-                print(f"DEBUG: Ref feature keys: {list(ref_features.keys())}")
-
             # Create feature comparison
             feature_comparison = FeatureComparisonService.create_feature_comparison(
                 input_features, ref_features
             )
-            print(f"DEBUG: Feature comparison length: {len(feature_comparison)} chars")
         finally:
             session.close()
 
@@ -449,9 +439,6 @@ class AudioRAG:
             "stage": getattr(user_upload, "stage", "unknown"),
         }
 
-        print(f"DEBUG: Chain input keys: {list(chain_input.keys())}")
-        for key, value in chain_input.items():
-            print(f"DEBUG: {key}: {type(value)} - {str(value)[:100]}...")
         rag_text_formatter = RagTextFormatter(self.operations)
 
         # Generate feedback using the pre-initialized RAG chain

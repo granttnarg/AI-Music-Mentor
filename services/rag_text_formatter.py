@@ -54,14 +54,9 @@ class RagTextFormatter:
                 )
 
                 try:
-                    print(f"\nDEBUG: Scoring feedback: '{feedback_text[:60]}...'")
-                    print(f"DEBUG: Feedback type: {feedback_type}")
-                    print(f"DEBUG: User question: '{user_question[:60]}...'")
-
                     # Get relevance score from small LLM
                     response = ranking_llm.invoke(ranking_prompt)
                     score_text = response.content.strip()
-                    print(f"DEBUG: Raw LLM response: '{score_text}'")
 
                     # Extract numeric score
                     import re
@@ -71,13 +66,10 @@ class RagTextFormatter:
                         int(score_match.group(1)) if score_match else 5
                     )  # Default to 5 if parsing fails
 
-                    print(f"DEBUG: Extracted score: {score}")
-
                     scored_feedback.append({"feedback": feedback, "score": score})
 
                 except Exception as e:
                     print(f"ERROR: Failed to score feedback: {e}")
-                    print(f"DEBUG: Feedback text was: '{feedback_text}'")
                     # Fallback: give average score
                     scored_feedback.append({"feedback": feedback, "score": 5})
 
@@ -191,7 +183,7 @@ class RagTextFormatter:
         )
         user_genre = getattr(user_upload, "genre", "electronic")
 
-        print(f"DEBUG: Ranking {len(all_feedback)} total feedback pieces...")
+        print(f"🎯 Ranking {len(all_feedback)} total feedback pieces...")
         ranked_feedback = self.rank_feedback_by_relevance(
             all_feedback, user_question, user_genre
         )
