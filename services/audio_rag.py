@@ -98,74 +98,7 @@ class AudioRAG:
                 )
 
             # Build results from similar tracks (which already have training examples)
-            results = []
-            for track in similar_tracks:
-                if len(results) >= k:
-                    break
-
-                # Find training examples for this track
-                training_examples = (
-                    session.query(TrainingExample)
-                    .filter(TrainingExample.example_track_id == track.id)
-                    .all()
-                )
-
-                for training_example in training_examples:
-                    if len(results) >= k:
-                        break
-
-                    # Get reference track
-                    reference_track = (
-                        session.query(Track)
-                        .filter(Track.id == training_example.reference_track_id)
-                        .first()
-                    )
-
-                    # Get feedback for this training example
-                    feedback_items = (
-                        session.query(Feedback)
-                        .filter(Feedback.training_example_id == training_example.id)
-                        .all()
-                    )
-
-                    result = {
-                        "training_example_id": training_example.id,
-                        "similarity_rank": len(results) + 1,
-                        "example_track": {
-                            "id": track.id,
-                            "file_path": track.file_path,
-                            "embedding": list(track.global_embedding.tolist()),
-                            "duration": track.duration,
-                            "sample_rate": track.sample_rate,
-                            "arrangement_pattern": track.smoothed_arrangement_pattern,
-                        },
-                        "reference_track": (
-                            {
-                                "id": reference_track.id,
-                                "file_path": reference_track.file_path,
-                                "embedding": (
-                                    list(reference_track.global_embedding.tolist())
-                                    if reference_track.global_embedding is not None
-                                    else None
-                                ),
-                                "duration": reference_track.duration,
-                                "sample_rate": reference_track.sample_rate,
-                                "arrangement_pattern": reference_track.smoothed_arrangement_pattern,
-                            }
-                            if reference_track
-                            else None
-                        ),
-                        "feedback": [
-                            {
-                                "type": fb.feedback_type,
-                                "text": fb.feedback_text,
-                                "created_at": str(fb.created_at),
-                            }
-                            for fb in feedback_items
-                        ],
-                        "created_at": str(training_example.created_at),
-                    }
-                    results.append(result)
+            results = self._build_training_example_results(similar_tracks, k, session)
 
             # Create summary for LangSmith output tracking
             retrieval_summary = {
@@ -455,6 +388,80 @@ class AudioRAG:
             fallback_feedback = self.prompt.format(**chain_input)
             cleaned_fallback = rag_text_formatter.clean_llm_output(fallback_feedback)
             return retrieval_warning + cleaned_fallback
+
+    def _build_training_example_results(
+        self, similar_tracks: List[Track], k: int, session
+    ) -> List[Dict[str, Any]]:
+        results = []
+        for track in similar_tracks:
+            if len(results) >= k:
+                break
+
+            # Find training examples for this track
+            training_examples = (
+                session.query(TrainingExample)
+                .filter(TrainingExample.example_track_id == track.id)
+                .all()
+            )
+
+            for training_example in training_examples:
+                if len(results) >= k:
+                    break
+
+                # Get reference track
+                reference_track = (
+                    session.query(Track)
+                    .filter(Track.id == training_example.reference_track_id)
+                    .first()
+                )
+
+                # Get feedback for this training example
+                feedback_items = (
+                    session.query(Feedback)
+                    .filter(Feedback.training_example_id == training_example.id)
+                    .all()
+                )
+
+                result = {
+                    "training_example_id": training_example.id,
+                    "similarity_rank": len(results) + 1,
+                    "example_track": {
+                        "id": track.id,
+                        "file_path": track.file_path,
+                        "embedding": list(track.global_embedding.tolist()),
+                        "duration": track.duration,
+                        "sample_rate": track.sample_rate,
+                        "arrangement_pattern": track.smoothed_arrangement_pattern,
+                    },
+                    "reference_track": (
+                        {
+                            "id": reference_track.id,
+                            "file_path": reference_track.file_path,
+                            "embedding": (
+                                list(reference_track.global_embedding.tolist())
+                                if reference_track.global_embedding is not None
+                                else None
+                            ),
+                            "duration": reference_track.duration,
+                            "sample_rate": reference_track.sample_rate,
+                            "arrangement_pattern": reference_track.smoothed_arrangement_pattern,
+                        }
+                        if reference_track
+                        else None
+                    ),
+                    "feedback": [
+                        {
+                            "type": fb.feedback_type,
+                            "text": fb.feedback_text,
+                            "created_at": str(fb.created_at),
+                        }
+                        for fb in feedback_items
+                    ],
+                    "created_at": str(training_example.created_at),
+                }
+                results.append(result)
+
+        return results
 
     def _check_ollama_connection(self) -> bool:
         """
