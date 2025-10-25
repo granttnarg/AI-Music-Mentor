@@ -210,143 +210,18 @@ class AudioRAG:
         """
         Complete RAG pipeline: retrieve, format, prompt, and generate feedback
         """
-        # Retrieve similar examples
+        # Retrieve and format
         similar_examples, user_upload, retrieval_info = self.retrieve_similar_examples(
             user_upload_id, k=k
         )
-
-        # Check retrieval quality and add warning if needed
-        retrieval_warning = ""
-        if len(similar_examples) == 0:
-            retrieval_warning = "⚠️ **No Training Examples Found**: No similar tracks found in database. Feedback will be very general.\n\n"
-        elif len(similar_examples) < 3:
-            retrieval_warning = f"⚠️ **Limited Training Data**: Only found {len(similar_examples)} similar examples. Feedback quality may be limited.\n\n"
-
-        # Add debug info (commented out for cleaner demo UI)
-        # if similar_examples:
-        #     total_feedback_items = sum(len(ex.get("feedback", [])) for ex in similar_examples)
-        #     retrieval_warning += f"📊 **Debug Info**: Retrieved {len(similar_examples)} examples with {total_feedback_items} feedback items\n\n"
-
-        # Format examples for prompt
+        retrieval_warning = self._generate_retrieval_warnings(similar_examples)
         formatted_examples = self.format_examples_for_prompt(
             similar_examples, user_upload, question
         )
 
-        # Get input and reference track data for the prompt
-        session = self.db.get_session()
-        try:
-            input_track_id = getattr(user_upload, "input_track_id", None)
-            reference_track_id = getattr(user_upload, "reference_track_id", None)
-
-            input_track = (
-                session.query(Track).filter(Track.id == input_track_id).first()
-                if input_track_id
-                else None
-            )
-            reference_track = (
-                session.query(Track).filter(Track.id == reference_track_id).first()
-                if reference_track_id
-                else None
-            )
-            input_pattern = "Unknown"
-            reference_pattern = "Unknown"
-            input_raw_pattern = "Unknown"
-            reference_raw_pattern = "Unknown"
-
-            if input_track and hasattr(input_track, "smoothed_arrangement_pattern"):
-                pattern = getattr(input_track, "smoothed_arrangement_pattern")
-                input_pattern = (
-                    pattern
-                    if pattern and not hasattr(pattern, "__table__")
-                    else "Unknown"
-                )
-
-            if reference_track and hasattr(
-                reference_track, "smoothed_arrangement_pattern"
-            ):
-                pattern = getattr(reference_track, "smoothed_arrangement_pattern")
-                reference_pattern = (
-                    pattern
-                    if pattern and not hasattr(pattern, "__table__")
-                    else "Unknown"
-                )
-
-            if input_track and hasattr(input_track, "raw_arrangement_pattern"):
-                raw_pattern = getattr(input_track, "raw_arrangement_pattern")
-                input_raw_pattern = (
-                    raw_pattern
-                    if raw_pattern and not hasattr(raw_pattern, "__table__")
-                    else "Unknown"
-                )
-
-            if reference_track and hasattr(reference_track, "raw_arrangement_pattern"):
-                raw_pattern = getattr(reference_track, "raw_arrangement_pattern")
-                reference_raw_pattern = (
-                    raw_pattern
-                    if raw_pattern and not hasattr(raw_pattern, "__table__")
-                    else "Unknown"
-                )
-
-            # Get global features for comparison
-            input_features = {}
-            ref_features = {}
-
-            if input_track and hasattr(input_track, "global_feature_data"):
-                features = getattr(input_track, "global_feature_data")
-                input_features = (
-                    features if features and not hasattr(features, "__table__") else {}
-                )
-
-            if reference_track and hasattr(reference_track, "global_feature_data"):
-                features = getattr(reference_track, "global_feature_data")
-                ref_features = (
-                    features if features and not hasattr(features, "__table__") else {}
-                )
-
-            # Create feature comparison
-            feature_comparison = FeatureComparisonService.create_feature_comparison(
-                input_features, ref_features
-            )
-        finally:
-            session.close()
-
-        # Prepare input for the chain
-        chain_input = {
-            "examples": formatted_examples,
-            "question": (
-                question
-                if question
-                else f"Please provide feedback on my {getattr(user_upload, 'genre', 'unknown')} track."
-            ),
-            "input_pattern": input_pattern,
-            "input_raw_pattern": input_raw_pattern,
-            "reference_pattern": reference_pattern,
-            "reference_raw_pattern": reference_raw_pattern,
-            "input_features": (
-                str(input_features) if input_features else "No features available"
-            ),
-            "ref_features": (
-                str(ref_features) if ref_features else "No features available"
-            ),
-            "feature_comparison": feature_comparison,
-            "genre": getattr(user_upload, "genre", "unknown"),
-            "stage": getattr(user_upload, "stage", "unknown"),
-        }
-
-        rag_text_formatter = RagTextFormatter(self.operations)
-
-        # Generate feedback using the pre-initialized RAG chain
-        try:
-            feedback = self.chain.invoke(chain_input)
-            # Clean the feedback to remove <think> tags and prepend retrieval warning
-            cleaned_feedback = rag_text_formatter.clean_llm_output(feedback)
-            return retrieval_warning + cleaned_feedback
-        except Exception as e:
-            print(f"Error generating feedback with LLM: {e}")
-            # Fallback to returning formatted prompt if LLM fails
-            fallback_feedback = self.prompt.format(**chain_input)
-            cleaned_fallback = rag_text_formatter.clean_llm_output(fallback_feedback)
-            return retrieval_warning + cleaned_fallback
+        # Build input and execute
+        chain_input = self._build_chain_input(user_upload, formatted_examples, question)
+        return self._execute_llm_chain(chain_input, retrieval_warning)
 
     def _build_training_example_results(
         self, similar_tracks: List[Track], k: int, session
@@ -480,6 +355,157 @@ class AudioRAG:
         return formatter.rank_feedback_by_relevance(
             all_feedback, user_question, user_genre
         )
+
+    def _generate_retrieval_warnings(
+        self, similar_examples: List[Dict[str, Any]]
+    ) -> str:
+        """Generate warning messages based on retrieval quality"""
+        if len(similar_examples) == 0:
+            return "⚠️ **No Training Examples Found**: No similar tracks found in database. Feedback will be very general.\n\n"
+        elif len(similar_examples) < 3:
+            return f"⚠️ **Limited Training Data**: Only found {len(similar_examples)} similar examples. Feedback quality may be limited.\n\n"
+        return ""
+
+    def _build_chain_input(
+        self, user_upload: UserUpload, formatted_examples: str, question: str
+    ) -> Dict[str, str]:
+        """Build input dictionary for the LLM chain"""
+        # Extract track features and patterns
+        track_data = self._extract_track_features(user_upload)
+
+        return {
+            "examples": formatted_examples,
+            "question": (
+                question
+                if question
+                else f"Please provide feedback on my {getattr(user_upload, 'genre', 'unknown')} track."
+            ),
+            "input_pattern": track_data["input_pattern"],
+            "input_raw_pattern": track_data["input_raw_pattern"],
+            "reference_pattern": track_data["reference_pattern"],
+            "reference_raw_pattern": track_data["reference_raw_pattern"],
+            "input_features": (
+                str(track_data["input_features"])
+                if track_data["input_features"]
+                else "No features available"
+            ),
+            "ref_features": (
+                str(track_data["ref_features"])
+                if track_data["ref_features"]
+                else "No features available"
+            ),
+            "feature_comparison": track_data["feature_comparison"],
+            "genre": getattr(user_upload, "genre", "unknown"),
+            "stage": getattr(user_upload, "stage", "unknown"),
+        }
+
+    def _extract_track_features(self, user_upload: UserUpload) -> Dict[str, Any]:
+        """Extract track data and features for the prompt"""
+        session = self.db.get_session()
+        try:
+            input_track_id = getattr(user_upload, "input_track_id", None)
+            reference_track_id = getattr(user_upload, "reference_track_id", None)
+
+            input_track = (
+                session.query(Track).filter(Track.id == input_track_id).first()
+                if input_track_id
+                else None
+            )
+            reference_track = (
+                session.query(Track).filter(Track.id == reference_track_id).first()
+                if reference_track_id
+                else None
+            )
+
+            # Extract arrangement patterns
+            input_pattern = "Unknown"
+            reference_pattern = "Unknown"
+            input_raw_pattern = "Unknown"
+            reference_raw_pattern = "Unknown"
+
+            if input_track and hasattr(input_track, "smoothed_arrangement_pattern"):
+                pattern = getattr(input_track, "smoothed_arrangement_pattern")
+                input_pattern = (
+                    pattern
+                    if pattern and not hasattr(pattern, "__table__")
+                    else "Unknown"
+                )
+
+            if reference_track and hasattr(
+                reference_track, "smoothed_arrangement_pattern"
+            ):
+                pattern = getattr(reference_track, "smoothed_arrangement_pattern")
+                reference_pattern = (
+                    pattern
+                    if pattern and not hasattr(pattern, "__table__")
+                    else "Unknown"
+                )
+
+            if input_track and hasattr(input_track, "raw_arrangement_pattern"):
+                raw_pattern = getattr(input_track, "raw_arrangement_pattern")
+                input_raw_pattern = (
+                    raw_pattern
+                    if raw_pattern and not hasattr(raw_pattern, "__table__")
+                    else "Unknown"
+                )
+
+            if reference_track and hasattr(reference_track, "raw_arrangement_pattern"):
+                raw_pattern = getattr(reference_track, "raw_arrangement_pattern")
+                reference_raw_pattern = (
+                    raw_pattern
+                    if raw_pattern and not hasattr(raw_pattern, "__table__")
+                    else "Unknown"
+                )
+
+            # Get global features for comparison
+            input_features = {}
+            ref_features = {}
+
+            if input_track and hasattr(input_track, "global_feature_data"):
+                features = getattr(input_track, "global_feature_data")
+                input_features = (
+                    features if features and not hasattr(features, "__table__") else {}
+                )
+
+            if reference_track and hasattr(reference_track, "global_feature_data"):
+                features = getattr(reference_track, "global_feature_data")
+                ref_features = (
+                    features if features and not hasattr(features, "__table__") else {}
+                )
+
+            # Create feature comparison
+            feature_comparison = FeatureComparisonService.create_feature_comparison(
+                input_features, ref_features
+            )
+
+            return {
+                "input_pattern": input_pattern,
+                "reference_pattern": reference_pattern,
+                "input_raw_pattern": input_raw_pattern,
+                "reference_raw_pattern": reference_raw_pattern,
+                "input_features": input_features,
+                "ref_features": ref_features,
+                "feature_comparison": feature_comparison,
+            }
+        finally:
+            session.close()
+
+    def _execute_llm_chain(
+        self, chain_input: Dict[str, str], retrieval_warning: str
+    ) -> str:
+        """Execute the LLM chain and return cleaned output"""
+        rag_text_formatter = RagTextFormatter(self.operations)
+
+        try:
+            feedback = self.chain.invoke(chain_input)
+            cleaned_feedback = rag_text_formatter.clean_llm_output(feedback)
+            return retrieval_warning + cleaned_feedback
+        except Exception as e:
+            print(f"Error generating feedback with LLM: {e}")
+            # Fallback to returning formatted prompt if LLM fails
+            fallback_feedback = self.prompt.format(**chain_input)
+            cleaned_fallback = rag_text_formatter.clean_llm_output(fallback_feedback)
+            return retrieval_warning + cleaned_fallback
 
     def _check_ollama_connection(self) -> bool:
         """
