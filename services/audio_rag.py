@@ -33,9 +33,7 @@ class AudioRAG:
 
         base_url = os.environ["DEVELOPMENT_BASE_URL"]
 
-        self.llm = ChatOllama(
-            model=llm_model, temperature=0.4, base_url=base_url
-        )
+        self.llm = ChatOllama(model=llm_model, temperature=0.4, base_url=base_url)
         self.chain = self.prompt | self.llm | self.output_parser
 
     @traceable(name="retrieve_similar_examples")
@@ -491,8 +489,8 @@ if __name__ == "__main__":
     # Test the complete RAG pipeline with user upload ID 1
     try:
         # Test retrieval and formatting
-        similar_examples, user_upload, retrieval_summary = rag.retrieve_similar_examples(
-            user_upload_id=1, k=3
+        similar_examples, user_upload, retrieval_summary = (
+            rag.retrieve_similar_examples(user_upload_id=1, k=3)
         )
 
         # Use the formatter
