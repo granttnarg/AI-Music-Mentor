@@ -1,10 +1,10 @@
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, cast
 from db.operations import AudioRAGOperations
 from db.db import AudioRAGDatabase
 from db.models import TrainingExample, Track, UserUpload, Feedback
-from .feature_comparison_service import FeatureComparisonService
-from .prompt_loader import PromptLoader
-from .rag_text_formatter import RagTextFormatter
+from services.feature_comparison_service import FeatureComparisonService
+from services.prompt_loader import PromptLoader
+from services.rag_text_formatter import RagTextFormatter
 import os
 
 # LangChain imports
@@ -30,8 +30,11 @@ class AudioRAG:
         # Initialize RAG components
         self.prompt = self.create_prompt_template()
         self.output_parser = StrOutputParser()
+
+        base_url = os.environ["DEVELOPMENT_BASE_URL"]
+
         self.llm = ChatOllama(
-            model=llm_model, temperature=0.4, base_url="http://localhost:11434"
+            model=llm_model, temperature=0.4, base_url=base_url
         )
         self.chain = self.prompt | self.llm | self.output_parser
 
@@ -67,6 +70,7 @@ class AudioRAG:
                 .filter(Track.id == user_upload.input_track_id)
                 .first()
             )
+
             if not input_track or input_track.global_embedding is None:
                 raise ValueError(
                     f"Input track embedding not found for user upload {user_upload_id}"
@@ -74,7 +78,7 @@ class AudioRAG:
 
             # Use the new optimized method that only searches tracks with training examples
             similar_tracks = self.operations.find_similar_tracks_with_training_examples(
-                embedding=list(input_track.global_embedding),
+                embedding=input_track.global_embedding.tolist(),
                 metric=metric,
                 limit=k,  # No need to multiply since we're pre-filtering
             )
@@ -132,7 +136,7 @@ class AudioRAG:
                         "example_track": {
                             "id": track.id,
                             "file_path": track.file_path,
-                            "embedding": list(track.global_embedding),
+                            "embedding": list(track.global_embedding.tolist()),
                             "duration": track.duration,
                             "sample_rate": track.sample_rate,
                             "arrangement_pattern": track.smoothed_arrangement_pattern,
@@ -142,7 +146,7 @@ class AudioRAG:
                                 "id": reference_track.id,
                                 "file_path": reference_track.file_path,
                                 "embedding": (
-                                    list(reference_track.global_embedding)
+                                    list(reference_track.global_embedding.tolist())
                                     if reference_track.global_embedding is not None
                                     else None
                                 ),
@@ -469,7 +473,7 @@ class AudioRAG:
             return False
 
 
-# Example usage
+# Example usage to test in development
 if __name__ == "__main__":
     from dotenv import load_dotenv
     from db.db import AudioRAGDatabase
@@ -487,12 +491,16 @@ if __name__ == "__main__":
     # Test the complete RAG pipeline with user upload ID 1
     try:
         # Test retrieval and formatting
-        similar_examples, user_upload = rag.retrieve_similar_examples(
+        similar_examples, user_upload, retrieval_summary = rag.retrieve_similar_examples(
             user_upload_id=1, k=3
         )
-        formatted_examples = rag.format_examples_for_prompt(
+
+        # Use the formatter
+        formatter = RagTextFormatter(rag.operations)
+        formatted_examples = formatter.format_examples_for_prompt(
             similar_examples, user_upload
         )
+
         print("=== Formatted Examples ===")
         print(formatted_examples)
         print("\n" + "=" * 50 + "\n")
