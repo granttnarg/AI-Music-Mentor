@@ -144,48 +144,10 @@ class AudioRAG:
         if not similar_examples:
             return "No similar examples found."
 
-        # Get input and reference track arrangement patterns
-        session = self.db.get_session()
-        try:
-            input_track = (
-                session.query(Track)
-                .filter(Track.id == user_upload.input_track_id)
-                .first()
-            )
-            reference_track = (
-                session.query(Track)
-                .filter(Track.id == user_upload.reference_track_id)
-                .first()
-            )
-            input_arrangement = (
-                input_track.smoothed_arrangement_pattern if input_track else "Unknown"
-            )
-            reference_arrangement = (
-                reference_track.smoothed_arrangement_pattern
-                if reference_track
-                else "Unknown"
-            )
-        finally:
-            session.close()
+        # Build user context section
+        context = self._build_user_context(user_upload)
 
-        # Start with user context
-        context = f"User Upload Context:\n"
-        context += f"  User Prompt Notes: {user_upload.user_prompt}\n"
-        context += f"  Stage: {user_upload.stage}\n"
-        context += f"  Genre: {user_upload.genre}\n"
-        context += f"  Input Track Structure: {input_arrangement}\n"
-        context += f"  Reference Track Structure: {reference_arrangement}\n\n"
-        # Collect ALL feedback pieces from all similar examples for ranking
-        all_feedback = []
-        for example in similar_examples:
-            feedback_items = example.get("feedback", [])
-            for feedback in feedback_items:
-                # Add context about which example this feedback came from
-                feedback_with_context = feedback.copy()
-                feedback_with_context["source_example"] = example
-                all_feedback.append(feedback_with_context)
-
-        # Rank feedback by relevance using small LLM
+        # Rank and select most relevant feedback
         user_question = (
             question
             if question.strip()
@@ -195,19 +157,16 @@ class AudioRAG:
             )
         )
         user_genre = getattr(user_upload, "genre", "electronic")
-
-        # Use the formatter for ranking
-        formatter = RagTextFormatter(self.operations)
-        ranked_feedback = formatter.rank_feedback_by_relevance(
-            all_feedback, user_question, user_genre
+        ranked_feedback = self._rank_and_select_feedback(
+            similar_examples, user_question, user_genre
         )
 
+        # Format the final examples
         context += (
             f"Most Relevant Feedback (from {len(similar_examples)} similar tracks):\n\n"
         )
 
         formatted_examples = []
-        # Format only the top-ranked feedback pieces
         for i, feedback in enumerate(ranked_feedback, 1):
             source_example = feedback.get("source_example", {})
             example_track = source_example.get("example_track", {})
@@ -462,6 +421,65 @@ class AudioRAG:
                 results.append(result)
 
         return results
+
+    def _build_user_context(self, user_upload: UserUpload) -> str:
+        """Build user context section with track arrangement patterns"""
+        # Get input and reference track arrangement patterns
+        session = self.db.get_session()
+        try:
+            input_track = (
+                session.query(Track)
+                .filter(Track.id == user_upload.input_track_id)
+                .first()
+            )
+            reference_track = (
+                session.query(Track)
+                .filter(Track.id == user_upload.reference_track_id)
+                .first()
+            )
+            input_arrangement = (
+                input_track.smoothed_arrangement_pattern if input_track else "Unknown"
+            )
+            reference_arrangement = (
+                reference_track.smoothed_arrangement_pattern
+                if reference_track
+                else "Unknown"
+            )
+        finally:
+            session.close()
+
+        # Build context string
+        context = f"User Upload Context:\n"
+        context += f"  User Prompt Notes: {user_upload.user_prompt}\n"
+        context += f"  Stage: {user_upload.stage}\n"
+        context += f"  Genre: {user_upload.genre}\n"
+        context += f"  Input Track Structure: {input_arrangement}\n"
+        context += f"  Reference Track Structure: {reference_arrangement}\n\n"
+
+        return context
+
+    def _rank_and_select_feedback(
+        self,
+        similar_examples: List[Dict[str, Any]],
+        user_question: str,
+        user_genre: str,
+    ) -> List[Dict]:
+        """Collect and rank feedback from similar examples"""
+        # Collect ALL feedback pieces from all similar examples for ranking
+        all_feedback = []
+        for example in similar_examples:
+            feedback_items = example.get("feedback", [])
+            for feedback in feedback_items:
+                # Add context about which example this feedback came from
+                feedback_with_context = feedback.copy()
+                feedback_with_context["source_example"] = example
+                all_feedback.append(feedback_with_context)
+
+        # Use the formatter for ranking
+        formatter = RagTextFormatter(self.operations)
+        return formatter.rank_feedback_by_relevance(
+            all_feedback, user_question, user_genre
+        )
 
     def _check_ollama_connection(self) -> bool:
         """
