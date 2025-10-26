@@ -157,9 +157,7 @@ class TestAudioRAGEndToEnd:
         print(f"   - Contains feedback: {'Most Relevant Feedback' in formatted_text}")
         print(f"   - Contains genre: {'techno' in formatted_text}")
 
-    def test_generate_feedback_complete_pipeline(
-        self, setup_rag, mock_user_upload
-    ):
+    def test_generate_feedback_complete_pipeline(self, setup_rag, mock_user_upload):
         """Test the complete generate_feedback pipeline"""
         rag, _ = setup_rag
 
