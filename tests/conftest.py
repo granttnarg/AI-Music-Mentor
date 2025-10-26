@@ -274,7 +274,9 @@ def setup_rag(mock_db, mock_rag_operations, mock_rag_prompts):
                             # Create AudioRAG instance with injected operations and prompts
                             mock_chain = Mock()
                             mock_chain.invoke.return_value = "Here's some great feedback about your techno track based on similar examples!"
-                            rag = AudioRAG(mock_rag_operations, mock_rag_prompts, mock_chain)
+                            rag = AudioRAG(
+                                mock_rag_operations, mock_rag_prompts, mock_chain
+                            )
 
                             # Chain is already injected above
 

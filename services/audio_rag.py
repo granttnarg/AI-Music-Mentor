@@ -35,7 +35,9 @@ def create_llm_chain(prompts: Dict[str, Any], llm_model: str = "qwen3:8b"):
 
 
 class AudioRAG:
-    def __init__(self, operations: AudioRAGOperations, prompts: Dict[str, Any], llm_chain: Any):
+    def __init__(
+        self, operations: AudioRAGOperations, prompts: Dict[str, Any], llm_chain: Any
+    ):
         self.operations = operations
         self.db = operations.db  # Keep for backward compatibility
         self.prompts = prompts

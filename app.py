@@ -554,6 +554,7 @@ else:
                             from db.operations import AudioRAGOperations
                             from services.prompt_loader import PromptLoader
                             from services.audio_rag import create_llm_chain
+
                             operations = AudioRAGOperations(db_ops.db)
                             prompts = PromptLoader._load_prompts()
                             llm_chain = create_llm_chain(prompts)
