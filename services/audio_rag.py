@@ -199,7 +199,6 @@ class AudioRAG:
 
         return context
 
-
     @traceable
     def generate_feedback(
         self, user_upload_id: int, question: str = "", k: int = 5
