@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, JSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
 

@@ -158,10 +158,10 @@ class TestAudioRAGEndToEnd:
         print(f"   - Contains genre: {'techno' in formatted_text}")
 
     def test_generate_feedback_complete_pipeline(
-        self, setup_rag, mock_user_upload, mock_input_track, realistic_global_features
+        self, setup_rag, mock_user_upload
     ):
         """Test the complete generate_feedback pipeline"""
-        rag, session = setup_rag
+        rag, _ = setup_rag
 
         # Mock the retrieve_similar_examples method
         mock_results = [
@@ -251,13 +251,8 @@ class TestAudioRAGEndToEnd:
         print(f"   - Global features structure matches training data: ✓")
         print(f"   - Feedback content: {transformed_feedback['text'][:50]}...")
 
-    def test_user_prompt_attribute_fix(self, setup_rag, mock_user_upload):
+    def test_user_prompt_attribute_fix(self, mock_user_upload):
         """Test that user_prompt (not user_prompt_notes) is correctly accessed"""
-        rag, session = setup_rag
-
-        # Mock similar examples
-        similar_examples = [{"feedback": [{"type": "test", "text": "test feedback"}]}]
-
         # Test the user question extraction logic
         question = ""  # Empty question to trigger fallback
         user_question = (
