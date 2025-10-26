@@ -16,25 +16,37 @@ from langchain_ollama import ChatOllama
 from langsmith import traceable
 
 
+def create_llm_chain(prompts: Dict[str, Any], llm_model: str = "qwen3:8b"):
+    """Helper function to create LLM chain with default settings"""
+    # Create prompt template
+    template = prompts.get("feedback_generation", {}).get("template", "")
+    if not template:
+        print("Warning: Could not load feedback_generation template from prompts")
+        template = "You are an AI music mentor. Provide feedback on: {question}"
+    prompt = ChatPromptTemplate.from_template(template)
+
+    # Create LLM
+    base_url = os.environ["DEVELOPMENT_BASE_URL"]
+    llm = ChatOllama(model=llm_model, temperature=0.4, base_url=base_url)
+
+    # Create chain
+    output_parser = StrOutputParser()
+    return prompt | llm | output_parser
+
+
 class AudioRAG:
-    def __init__(self, db: AudioRAGDatabase, llm_model: str = "qwen3:8b"):
-        self.db = db
-        self.operations = AudioRAGOperations(db)
-        self.llm_model = llm_model
+    def __init__(self, operations: AudioRAGOperations, prompts: Dict[str, Any], llm_chain: Any):
+        self.operations = operations
+        self.db = operations.db  # Keep for backward compatibility
+        self.prompts = prompts
+        self.chain = llm_chain
 
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
-        # Load prompts from YAML
-        self.prompts = PromptLoader._load_prompts()
-
-        # Initialize RAG components
+        # Initialize RAG components (for backward compatibility)
         self.prompt = self.create_prompt_template()
         self.output_parser = StrOutputParser()
-
-        base_url = os.environ["DEVELOPMENT_BASE_URL"]
-
-        self.llm = ChatOllama(model=llm_model, temperature=0.4, base_url=base_url)
-        self.chain = self.prompt | self.llm | self.output_parser
+        self.llm = None  # Will be set by chain if needed
 
     @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
@@ -531,7 +543,10 @@ if __name__ == "__main__":
         "DB_CONNECTION_URL", "postgresql://postgres:<ADD_TOENV_FILE>"
     )
     db = AudioRAGDatabase(connection_url)
-    rag = AudioRAG(db)
+    operations = AudioRAGOperations(db)
+    prompts = PromptLoader._load_prompts()
+    llm_chain = create_llm_chain(prompts)
+    rag = AudioRAG(operations, prompts, llm_chain)
 
     # Test the complete RAG pipeline with user upload ID 1
     try:

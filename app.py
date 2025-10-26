@@ -551,7 +551,13 @@ else:
 
                         try:
                             # Create RAG service using existing database connection
-                            rag_service = AudioRAG(db_ops.db)
+                            from db.operations import AudioRAGOperations
+                            from services.prompt_loader import PromptLoader
+                            from services.audio_rag import create_llm_chain
+                            operations = AudioRAGOperations(db_ops.db)
+                            prompts = PromptLoader._load_prompts()
+                            llm_chain = create_llm_chain(prompts)
+                            rag_service = AudioRAG(operations, prompts, llm_chain)
                             feedback = rag_service.generate_feedback(
                                 user_upload_id=upload_id,
                                 question=text_input,
@@ -743,7 +749,10 @@ else:
                                 # Add inspiration track section after feedback
                                 # TODO: Re-enable for post-demo development
                                 # try:
-                                #     rag_service = AudioRAG(db_ops.db)
+                                #     operations = AudioRAGOperations(db_ops.db)
+                                #     prompts = PromptLoader._load_prompts()
+                                #     llm_chain = create_llm_chain(prompts)
+                                #     rag_service = AudioRAG(operations, prompts, llm_chain)
                                 #     similar_examples, user_upload, retrieval_info = rag_service.retrieve_similar_examples(
                                 #         user_upload_id=upload_id, k=1
                                 #     )

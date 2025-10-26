@@ -221,12 +221,15 @@ def mock_feedback_items(mock_training_examples):
 
 
 @pytest.fixture
-def mock_rag_operations(mock_similar_tracks):
+def mock_rag_operations(mock_similar_tracks, mock_db):
     """Mock RAG operations"""
     operations = Mock()
     operations.find_similar_tracks_with_training_examples.return_value = (
         mock_similar_tracks
     )
+    # Add db attribute for backward compatibility
+    db, _ = mock_db
+    operations.db = db
     return operations
 
 
@@ -268,18 +271,12 @@ def setup_rag(mock_db, mock_rag_operations, mock_rag_prompts):
                 with patch("services.audio_rag.ChatPromptTemplate"):
                     with patch("services.audio_rag.ChatOllama"):
                         with patch("services.audio_rag.StrOutputParser"):
-                            # Create AudioRAG instance
-                            rag = AudioRAG(db, llm_model="test-model")
+                            # Create AudioRAG instance with injected operations and prompts
+                            mock_chain = Mock()
+                            mock_chain.invoke.return_value = "Here's some great feedback about your techno track based on similar examples!"
+                            rag = AudioRAG(mock_rag_operations, mock_rag_prompts, mock_chain)
 
-                            # Replace with our mocked operations
-                            rag.operations = mock_rag_operations
-
-                            # Mock the chain components
-                            rag.prompt = Mock()
-                            rag.llm = Mock()
-                            rag.output_parser = Mock()
-                            rag.chain = Mock()
-                            rag.chain.invoke.return_value = "Here's some great feedback about your techno track based on similar examples!"
+                            # Chain is already injected above
 
                             return rag, session
 
