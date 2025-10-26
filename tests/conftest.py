@@ -256,31 +256,38 @@ Provide detailed, actionable feedback based on the similar examples."""
 
 
 @pytest.fixture
-def setup_rag(mock_db, mock_rag_operations, mock_rag_prompts):
+@patch.dict(os.environ, {"DEVELOPMENT_BASE_URL": "http://localhost:11434"})
+@patch("services.audio_rag.StrOutputParser")
+@patch("services.audio_rag.ChatOllama")
+@patch("services.audio_rag.ChatPromptTemplate")
+@patch("services.audio_rag.AudioRAGOperations")
+@patch("services.audio_rag.PromptLoader._load_prompts")
+def setup_rag(
+    mock_prompts,
+    mock_ops,
+    mock_template,
+    mock_chat,
+    mock_parser,
+    mock_db,
+    mock_rag_operations,
+    mock_rag_prompts,
+):
     """Set up AudioRAG with mocked dependencies"""
     from services.audio_rag import AudioRAG
 
+    # Configure the prompt loader mock
+    mock_prompts.return_value = mock_rag_prompts
+
     db, session = mock_db
 
-    with patch.dict(os.environ, {"DEVELOPMENT_BASE_URL": "http://localhost:11434"}):
-        with patch(
-            "services.audio_rag.PromptLoader._load_prompts",
-            return_value=mock_rag_prompts,
-        ):
-            with patch("services.audio_rag.AudioRAGOperations"):
-                with patch("services.audio_rag.ChatPromptTemplate"):
-                    with patch("services.audio_rag.ChatOllama"):
-                        with patch("services.audio_rag.StrOutputParser"):
-                            # Create AudioRAG instance with injected operations and prompts
-                            mock_chain = Mock()
-                            mock_chain.invoke.return_value = "Here's some great feedback about your techno track based on similar examples!"
-                            rag = AudioRAG(
-                                mock_rag_operations, mock_rag_prompts, mock_chain
-                            )
+    # Create AudioRAG instance with injected dependencies
+    mock_chain = Mock()
+    mock_chain.invoke.return_value = (
+        "Here's some great feedback about your techno track based on similar examples!"
+    )
+    rag = AudioRAG(mock_rag_operations, mock_rag_prompts, mock_chain)
 
-                            # Chain is already injected above
-
-                            return rag, session
+    return rag, session
 
 
 @pytest.fixture
