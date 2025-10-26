@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Tuple, cast
+from typing import List, Dict, Any, Tuple
 from db.operations import AudioRAGOperations
 from db.db import AudioRAGDatabase
 from db.models import TrainingExample, Track, UserUpload, Feedback
@@ -117,11 +117,7 @@ class AudioRAG:
                 ],
             }
 
-            # Add similarity scores for debugging
-            for i, result in enumerate(results):
-                result["similarity_rank"] = i + 1
-
-            # This will be captured in the trace output
+            # This will be captured in the trace output in langsmith
             return results, user_upload, retrieval_summary
 
         except Exception as e:
@@ -152,7 +148,7 @@ class AudioRAG:
             question
             if question.strip()
             else (
-                getattr(user_upload, "user_prompt_notes", "general feedback")
+                getattr(user_upload, "user_prompt", "general feedback")
                 or "general feedback"
             )
         )
