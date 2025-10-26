@@ -39,16 +39,14 @@ class AudioRAG:
         self, operations: AudioRAGOperations, prompts: Dict[str, Any], llm_chain: Any
     ):
         self.operations = operations
-        self.db = operations.db  # Keep for backward compatibility
+        self.db = operations.db
         self.prompts = prompts
         self.chain = llm_chain
 
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
-        # Initialize RAG components (for backward compatibility)
-        self.prompt = self.create_prompt_template()
-        self.output_parser = StrOutputParser()
-        self.llm = None  # Will be set by chain if needed
+        # Initialize text formatter for output processing
+        self.text_formatter = RagTextFormatter(self.operations)
 
     @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
@@ -201,17 +199,6 @@ class AudioRAG:
 
         return context
 
-    def create_prompt_template(self) -> ChatPromptTemplate:
-        """
-        Create a LangChain prompt template for music feedback generation
-        """
-        template = self.prompts.get("feedback_generation", {}).get("template", "")
-        if not template:
-            print(
-                "Warning: Could not load feedback_generation template from YAML, using fallback"
-            )
-            template = "You are an AI music mentor. Provide feedback on: {question}"
-        return ChatPromptTemplate.from_template(template)
 
     @traceable
     def generate_feedback(
@@ -504,31 +491,40 @@ class AudioRAG:
         self, chain_input: Dict[str, str], retrieval_warning: str
     ) -> str:
         """Execute the LLM chain and return cleaned output"""
-        rag_text_formatter = RagTextFormatter(self.operations)
-
         try:
             feedback = self.chain.invoke(chain_input)
-            cleaned_feedback = rag_text_formatter.clean_llm_output(feedback)
+            cleaned_feedback = self.text_formatter.clean_llm_output(feedback)
             return retrieval_warning + cleaned_feedback
         except Exception as e:
-            print(f"Error generating feedback with LLM: {e}")
-            # Fallback to returning formatted prompt if LLM fails
-            fallback_feedback = self.prompt.format(**chain_input)
-            cleaned_fallback = rag_text_formatter.clean_llm_output(fallback_feedback)
-            return retrieval_warning + cleaned_fallback
+            error_msg = f"⚠️ **AI Service Error**: Unable to generate feedback ({str(e)[:100]}...)\n\n"
+
+            # Return a helpful error message with the context that was gathered
+            fallback_response = (
+                "I was able to analyze your tracks and find similar examples, "
+                "but the AI feedback service is currently unavailable. "
+                "Please try again in a moment.\n\n"
+                "**Track Analysis Summary:**\n"
+                f"- Input pattern: {chain_input.get('input_pattern', 'Unknown')}\n"
+                f"- Reference pattern: {chain_input.get('reference_pattern', 'Unknown')}\n"
+                f"- Genre: {chain_input.get('genre', 'Unknown')}\n"
+                f"- Stage: {chain_input.get('stage', 'Unknown')}\n\n"
+                "The system found relevant examples for your track type. "
+                "Once the AI service is restored, you'll get detailed feedback based on these matches."
+            )
+
+            return error_msg + fallback_response
 
     def _check_ollama_connection(self) -> bool:
         """
         Check if Ollama server is running and accessible
         """
         try:
-            # Simple test to see if we can reach the LLM
-            test_response = self.llm.invoke("Hello")
+            # Simple test to see if we can reach the LLM through the chain
+            self.chain.invoke({"question": "Hello"})
             return True
         except Exception as e:
             print(f"Ollama connection failed: {e}")
             print("Make sure Ollama is running with: ollama serve")
-            print(f"And that the model '{self.llm_model}' is available")
             return False
 
 
