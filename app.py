@@ -9,6 +9,14 @@ from services.song_visualizer_service import SongVisualizerService
 from dotenv import load_dotenv
 import os
 import matplotlib.pyplot as plt
+import base64
+import random
+import json
+import numpy as np
+from db.models import UserUpload
+from src.classifier.arrangement_postprocessing import process_arrangement_predictions
+from services.prompt_loader import PromptLoader
+from services.audio_rag import create_llm_chain
 
 GENRES = [
     "deep techno",
@@ -245,9 +253,9 @@ with st.sidebar:
             <img src="data:image/jpeg;base64,{}" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
         """.format(
-            __import__("base64")
-            .b64encode(open("images/pexels-muffinlandge-27007091.jpg", "rb").read())
-            .decode()
+            base64.b64encode(
+                open("images/pexels-muffinlandge-27007091.jpg", "rb").read()
+            ).decode()
         ),
         unsafe_allow_html=True,
     )
@@ -344,8 +352,6 @@ else:
                 "**Focus**: A great track usually has one main element that everything else supports, try to understand which element is the strongest and use that as your songs backbone.",
             ]
 
-            import random
-
             current_tip = random.choice(music_tips)
             tip_container.info(current_tip)
 
@@ -427,8 +433,6 @@ else:
                         # Get track data with arrangement information
                         session = db_ops.db.get_session()
                         try:
-                            from db.models import UserUpload
-
                             upload = (
                                 session.query(UserUpload)
                                 .filter(UserUpload.id == upload_id)
@@ -455,12 +459,6 @@ else:
                                     if input_track_data.get(
                                         "raw_predictions"
                                     ) and input_track_data.get("raw_confidence_scores"):
-                                        import json
-                                        import numpy as np
-                                        from src.classifier.arrangement_postprocessing import (
-                                            process_arrangement_predictions,
-                                        )
-
                                         raw_predictions = json.loads(
                                             input_track_data["raw_predictions"]
                                         )
@@ -485,12 +483,6 @@ else:
                                     if ref_track_data.get(
                                         "raw_predictions"
                                     ) and ref_track_data.get("raw_confidence_scores"):
-                                        import json
-                                        import numpy as np
-                                        from src.classifier.arrangement_postprocessing import (
-                                            process_arrangement_predictions,
-                                        )
-
                                         raw_predictions = json.loads(
                                             ref_track_data["raw_predictions"]
                                         )
@@ -551,10 +543,6 @@ else:
 
                         try:
                             # Create RAG service using existing database connection
-                            from db.operations import AudioRAGOperations
-                            from services.prompt_loader import PromptLoader
-                            from services.audio_rag import create_llm_chain
-
                             operations = AudioRAGOperations(db_ops.db)
                             prompts = PromptLoader._load_prompts()
                             llm_chain = create_llm_chain(prompts)
