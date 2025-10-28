@@ -89,7 +89,7 @@ class TestAudioRAGEndToEnd:
                 assert "text" in feedback  # DB feedback_text -> "text"
                 assert "created_at" in feedback
 
-        print("✅ Retrieved similar examples structure:")
+        print("Retrieved similar examples structure:")
         print(f"   - Found {len(results)} results")
         print(f"   - Retrieval summary keys: {list(retrieval_summary.keys())}")
         if results:
@@ -151,7 +151,7 @@ class TestAudioRAGEndToEnd:
         assert "techno" in formatted_text  # Genre should be included
         assert "Half Finished" in formatted_text  # Stage should be included
 
-        print("✅ Formatted examples structure:")
+        print("Formatted examples structure:")
         print(f"   - Output length: {len(formatted_text)} characters")
         print(f"   - Contains user context: {'User Upload Context:' in formatted_text}")
         print(f"   - Contains feedback: {'Most Relevant Feedback' in formatted_text}")
@@ -206,7 +206,7 @@ class TestAudioRAGEndToEnd:
         mock_retrieve.assert_called_once_with(1, k=3)
         mock_format.assert_called_once()
 
-        print("✅ Complete pipeline test:")
+        print("Complete pipeline test:")
         print(f"   - Generated feedback length: {len(feedback)} characters")
         print(f"   - Pipeline completed successfully")
 
@@ -243,7 +243,7 @@ class TestAudioRAGEndToEnd:
         assert "variation" in transformed_feedback["text"]  # Realistic feedback content
         assert "created_at" in transformed_feedback
 
-        print("✅ Data transformation test with realistic data:")
+        print("Data transformation test with realistic data:")
         print(f"   - DB field 'feedback_text' -> dict key 'text': ✓")
         print(f"   - DB field 'feedback_type' -> dict key 'type': ✓")
         print(f"   - Global features structure matches training data: ✓")
@@ -266,7 +266,7 @@ class TestAudioRAGEndToEnd:
         assert user_question == "Help me improve the drop section"
         assert user_question != "general feedback"
 
-        print("✅ User prompt attribute test:")
+        print("User prompt attribute test:")
         print(f"   - Correctly uses 'user_prompt' attribute: ✓")
         print(f"   - User question: '{user_question}'")
 

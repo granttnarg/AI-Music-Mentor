@@ -120,13 +120,13 @@ class RAGTextHelper:
     def _log_ranking_results(self, scored_feedback: List[Dict]):
         """Log ranking results for debugging"""
         print(
-            f"\n🎯 RANKING RESULTS: Scored {len(scored_feedback)} feedback pieces, selected top 2"
+            f"\n RANKING RESULTS: Scored {len(scored_feedback)} feedback pieces, selected top 2"
         )
         print("=" * 80)
         for i, item in enumerate(scored_feedback):
             feedback_text = item["feedback"].get("text", "No text")[:70]
             feedback_type = item["feedback"].get("type", "General")
-            selected = "✅ SELECTED" if i < 2 else "❌ rejected"
+            selected = "SELECTED" if i < 2 else "rejected"
             print(
                 f"#{i+1:2d} | Score: {item['score']:2d} | {selected} | Type: {feedback_type}"
             )
