@@ -45,7 +45,7 @@ class AudioRAG:
 
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
-        # Initialize text helper for output processing  
+        # Initialize text helper for output processing
         self.text_helper = RAGTextHelper(self.operations)
 
     @traceable(name="retrieve_similar_examples")

@@ -25,7 +25,9 @@ class RAGTextHelper:
 
         try:
             ranking_llm = self._create_ranking_llm()
-            scored_feedback = self._score_all_feedback(feedback_items, user_question, user_genre, ranking_llm)
+            scored_feedback = self._score_all_feedback(
+                feedback_items, user_question, user_genre, ranking_llm
+            )
             top_feedback = self._select_top_feedback(scored_feedback)
             self._log_ranking_results(scored_feedback)
             return top_feedback
@@ -42,22 +44,34 @@ class RAGTextHelper:
             temperature=0.0,  # Zero temperature for consistent scoring
         )
 
-    def _score_all_feedback(self, feedback_items: List[Dict], user_question: str, user_genre: str, ranking_llm) -> List[Dict]:
+    def _score_all_feedback(
+        self,
+        feedback_items: List[Dict],
+        user_question: str,
+        user_genre: str,
+        ranking_llm,
+    ) -> List[Dict]:
         """Score all feedback items using the ranking LLM"""
         scored_feedback = []
 
         for feedback in feedback_items:
-            score = self._score_single_feedback(feedback, user_question, user_genre, ranking_llm)
+            score = self._score_single_feedback(
+                feedback, user_question, user_genre, ranking_llm
+            )
             scored_feedback.append({"feedback": feedback, "score": score})
 
         return scored_feedback
 
-    def _score_single_feedback(self, feedback: Dict, user_question: str, user_genre: str, ranking_llm) -> int:
+    def _score_single_feedback(
+        self, feedback: Dict, user_question: str, user_genre: str, ranking_llm
+    ) -> int:
         """Score a single feedback item"""
         feedback_text = feedback.get("text", "")
         feedback_type = feedback.get("type", "general")
 
-        ranking_prompt = self._build_ranking_prompt(user_question, user_genre, feedback_type, feedback_text)
+        ranking_prompt = self._build_ranking_prompt(
+            user_question, user_genre, feedback_type, feedback_text
+        )
 
         try:
             response = ranking_llm.invoke(ranking_prompt)
@@ -66,7 +80,13 @@ class RAGTextHelper:
             print(f"ERROR: Failed to score feedback: {e}")
             return 5  # Default score
 
-    def _build_ranking_prompt(self, user_question: str, user_genre: str, feedback_type: str, feedback_text: str) -> str:
+    def _build_ranking_prompt(
+        self,
+        user_question: str,
+        user_genre: str,
+        feedback_type: str,
+        feedback_text: str,
+    ) -> str:
         """Build the prompt for ranking feedback"""
         ranking_template = self.prompts.get("feedback_ranking", {}).get("template", "")
         if not ranking_template:
@@ -86,23 +106,30 @@ class RAGTextHelper:
     def _extract_score_from_response(self, score_text: str) -> int:
         """Extract numeric score from LLM response"""
         import re
+
         score_match = re.search(r"\b([1-9]|10)\b", score_text)
         return int(score_match.group(1)) if score_match else 5
 
-    def _select_top_feedback(self, scored_feedback: List[Dict], top_n: int = 2) -> List[Dict]:
+    def _select_top_feedback(
+        self, scored_feedback: List[Dict], top_n: int = 2
+    ) -> List[Dict]:
         """Select top N feedback items by score"""
         scored_feedback.sort(key=lambda x: x["score"], reverse=True)
         return [item["feedback"] for item in scored_feedback[:top_n]]
 
     def _log_ranking_results(self, scored_feedback: List[Dict]):
         """Log ranking results for debugging"""
-        print(f"\n🎯 RANKING RESULTS: Scored {len(scored_feedback)} feedback pieces, selected top 2")
+        print(
+            f"\n🎯 RANKING RESULTS: Scored {len(scored_feedback)} feedback pieces, selected top 2"
+        )
         print("=" * 80)
         for i, item in enumerate(scored_feedback):
             feedback_text = item["feedback"].get("text", "No text")[:70]
             feedback_type = item["feedback"].get("type", "General")
             selected = "✅ SELECTED" if i < 2 else "❌ rejected"
-            print(f"#{i+1:2d} | Score: {item['score']:2d} | {selected} | Type: {feedback_type}")
+            print(
+                f"#{i+1:2d} | Score: {item['score']:2d} | {selected} | Type: {feedback_type}"
+            )
             print(f"     | Text: {feedback_text}...")
             print(f"     |")
         print("=" * 80)
@@ -138,7 +165,9 @@ class RAGTextHelper:
             return "No similar examples found."
 
         context = self._build_user_context(user_upload)
-        ranked_feedback = self._collect_and_rank_feedback(similar_examples, user_upload, question)
+        ranked_feedback = self._collect_and_rank_feedback(
+            similar_examples, user_upload, question
+        )
         formatted_examples = self._format_feedback_examples(ranked_feedback)
         summary = self._build_summary(similar_examples)
 
@@ -146,7 +175,9 @@ class RAGTextHelper:
 
     def _build_user_context(self, user_upload: UserUpload) -> str:
         """Build user context section with track arrangement patterns"""
-        input_arrangement, reference_arrangement = self._get_track_arrangements(user_upload)
+        input_arrangement, reference_arrangement = self._get_track_arrangements(
+            user_upload
+        )
 
         context = f"User Upload Context:\n"
         context += f"  User Prompt Notes: {user_upload.user_prompt}\n"
@@ -183,7 +214,12 @@ class RAGTextHelper:
         finally:
             session.close()
 
-    def _collect_and_rank_feedback(self, similar_examples: List[Dict[str, Any]], user_upload: UserUpload, question: str) -> List[Dict]:
+    def _collect_and_rank_feedback(
+        self,
+        similar_examples: List[Dict[str, Any]],
+        user_upload: UserUpload,
+        question: str,
+    ) -> List[Dict]:
         """Collect all feedback and rank by relevance"""
         # Collect ALL feedback pieces from all similar examples for ranking
         all_feedback = []
