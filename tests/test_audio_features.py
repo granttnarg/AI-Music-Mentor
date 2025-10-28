@@ -9,6 +9,9 @@ from unittest.mock import patch
 from src.audio_features import AudioFeatureService
 
 
+# Suppress librosa tuning estimation warning when using mocked/synthetic audio data
+# This warning occurs because librosa cannot detect musical pitch in test data
+@pytest.mark.filterwarnings("ignore::UserWarning:librosa")
 class TestAudioFeatureService:
 
     @pytest.fixture
