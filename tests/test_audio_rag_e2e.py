@@ -127,13 +127,13 @@ class TestAudioRAGEndToEnd:
 
         session.query.side_effect = mock_query_side_effect
 
-        # Mock the text formatter
-        with patch("services.audio_rag.RagTextFormatter") as mock_formatter_class:
-            mock_formatter = Mock()
-            mock_formatter.rank_feedback_by_relevance.return_value = (
+        # Mock the text helper
+        with patch("services.audio_rag.RAGTextHelper") as mock_helper_class:
+            mock_helper = Mock()
+            mock_helper.rank_feedback_by_relevance.return_value = (
                 realistic_similar_examples[0]["feedback"]
             )
-            mock_formatter_class.return_value = mock_formatter
+            mock_helper_class.return_value = mock_helper
 
             # Execute the method
             formatted_text = rag.format_examples_for_prompt(

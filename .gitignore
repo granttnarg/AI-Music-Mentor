@@ -4,6 +4,9 @@ __pycache__/
 *.pyc
 .venv/
 
+# Claude configuration (personal preferences)
+claude.md
+
 # Data
 *.mp3
 *.wav

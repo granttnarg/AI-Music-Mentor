@@ -4,7 +4,7 @@ from db.db import AudioRAGDatabase
 from db.models import TrainingExample, Track, UserUpload, Feedback
 from services.feature_comparison_service import FeatureComparisonService
 from services.prompt_loader import PromptLoader
-from services.rag_text_formatter import RagTextFormatter
+from services.rag_text_helper import RAGTextHelper
 import os
 
 # LangChain imports
@@ -45,8 +45,8 @@ class AudioRAG:
 
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
 
-        # Initialize text formatter for output processing
-        self.text_formatter = RagTextFormatter(self.operations)
+        # Initialize text helper for output processing  
+        self.text_helper = RAGTextHelper(self.operations)
 
     @traceable(name="retrieve_similar_examples")
     def retrieve_similar_examples(
@@ -346,9 +346,9 @@ class AudioRAG:
                 feedback_with_context["source_example"] = example
                 all_feedback.append(feedback_with_context)
 
-        # Use the formatter for ranking
-        formatter = RagTextFormatter(self.operations)
-        return formatter.rank_feedback_by_relevance(
+        # Use the helper for ranking
+        helper = RAGTextHelper(self.operations)
+        return helper.rank_feedback_by_relevance(
             all_feedback, user_question, user_genre
         )
 
@@ -492,7 +492,7 @@ class AudioRAG:
         """Execute the LLM chain and return cleaned output"""
         try:
             feedback = self.chain.invoke(chain_input)
-            cleaned_feedback = self.text_formatter.clean_llm_output(feedback)
+            cleaned_feedback = self.text_helper.clean_llm_output(feedback)
             return retrieval_warning + cleaned_feedback
         except Exception as e:
             error_msg = f"⚠️ **AI Service Error**: Unable to generate feedback ({str(e)[:100]}...)\n\n"
@@ -552,9 +552,9 @@ if __name__ == "__main__":
             rag.retrieve_similar_examples(user_upload_id=1, k=3)
         )
 
-        # Use the formatter
-        formatter = RagTextFormatter(rag.operations)
-        formatted_examples = formatter.format_examples_for_prompt(
+        # Use the helper
+        helper = RAGTextHelper(rag.operations)
+        formatted_examples = helper.format_examples_for_prompt(
             similar_examples, user_upload
         )
 
