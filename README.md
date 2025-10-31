@@ -365,9 +365,10 @@ This project was developed as an MVP for a Data Science bootcamp. While the code
 
 ## License
 
-Copyright (c) 2025 Grant Thomas  
+Copyright (c) 2025 Grant Thomas
 All rights reserved.
 
-This code is provided for reference and learning purposes only.  
-It may not be copied, modified, or used in any project,  
-commercial or otherwise, without explicit permission.
+This repository is provided publicly on GitHub for reference and educational purposes only.
+You may view and fork this code within GitHub in accordance with the GitHub Terms of Service.
+
+However, the code may not be copied, modified, redistributed, or used in any project—commercial or otherwise—outside of GitHub without explicit written permission from the author.
