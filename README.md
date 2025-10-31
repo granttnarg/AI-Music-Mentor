@@ -369,6 +369,12 @@ Copyright (c) 2025 Grant Thomas
 All rights reserved.
 
 This repository is provided publicly on GitHub for reference and educational purposes only.
-You may view and fork this code within GitHub in accordance with the GitHub Terms of Service.
+You may view and fork it within GitHub under the GitHub Terms of Service
+.
 
-However, the code may not be copied, modified, redistributed, or used in any project—commercial or otherwise—outside of GitHub without explicit written permission from the author.
+This project includes third-party software licensed under a modified Apache License 2.0, specifically the chat-ollama
+dependency, which imposes additional restrictions on commercial use.
+In particular, the upstream license prohibits using that software to operate multi-tenant services, SaaS platforms, or commercial cloud deployments without obtaining a separate commercial license from its author.
+
+Therefore, any use of this repository for commercial or hosted-service purposes may require additional licensing.
+For personal, educational, or reference purposes, you are free to view and fork this repository in accordance with GitHub’s policies.
