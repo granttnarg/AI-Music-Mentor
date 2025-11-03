@@ -1,7 +1,7 @@
 import streamlit as st
 from pathlib import Path
 from datetime import datetime
-from src.audio_features import AudioFeatureService
+import httpx
 from db.db import AudioRAGDatabase
 from db.operations import AudioRAGOperations
 from services.audio_rag import AudioRAG
@@ -17,6 +17,8 @@ from db.models import UserUpload
 from src.classifier.arrangement_postprocessing import process_arrangement_predictions
 from services.prompt_loader import PromptLoader
 from services.audio_rag import create_llm_chain
+
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 
 GENRES = [
     "deep techno",
@@ -44,46 +46,6 @@ def get_database():
     # db.reset_database()
     # db.setup_database()
     return AudioRAGOperations(db)
-
-
-def process_and_save_file(
-    file, file_type, session_dir, session_id, dropdown_option, text_input
-):
-    """Process and save a single file - now returns processed audio data"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    clean_name = Path(file.name).stem
-    new_file_info = f"{file_type}--{clean_name}--{timestamp}"
-    file_path = session_dir / f"{new_file_info}.mp3"
-
-    # Save the MP3 file
-    with open(file_path, "wb") as f:
-        f.write(file.getbuffer())
-
-    # Process audio features
-    service = AudioFeatureService()
-    try:
-        global_features = service.load_audio_file(file_path).extract_global_features(
-            max_duration=400
-        )
-        embedding = service.create_embedding_vector(global_features)
-        feature_data = service.build_feature_data_object(
-            global_features, ["rhythm", "energy"]
-        )
-
-        return {
-            "file_path": str(file_path),
-            "original_filename": file.name,
-            "file_size_bytes": file.size,
-            "duration": feature_data["metadata"]["duration"],
-            "sample_rate": feature_data["metadata"]["sample_rate"],
-            "embedding": embedding,
-            "global_features": global_features,
-            "success": True,
-        }
-    except Exception as e:
-        st.error(f"Error processing audio: {e} for: {file.name}")
-        return {"success": False, "error": str(e)}
 
 
 # START OF UPLOAD
@@ -330,12 +292,6 @@ else:
 
     if required_inputs:
         with st.spinner("Processing your tracks..."):
-            # Create a session-specific folder
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            session_id = f"session_{timestamp}"
-            session_dir = uploads_dir / session_id
-            session_dir.mkdir(exist_ok=True)
-
             progress_bar = st.progress(0)
             status_text = st.empty()
             tip_container = st.empty()
@@ -355,187 +311,212 @@ else:
             current_tip = random.choice(music_tips)
             tip_container.info(current_tip)
 
-            status_text.text("Creating session folder...")
-            progress_bar.progress(10)
-
-            status_text.text("Processing input track...")
+            status_text.text("Uploading and processing tracks...")
             progress_bar.progress(20)
-            # Show a new tip during processing
-            current_tip = random.choice(music_tips)
-            tip_container.info(current_tip)
 
-            input_data = process_and_save_file(
-                input_file,
-                "input",
-                session_dir,
-                session_id,
-                dropdown_option,
-                text_input,
-            )
+            try:
+                # Call API to process both tracks
+                with httpx.Client(timeout=300.0) as client:
+                    files = {
+                        "input_file": (
+                            input_file.name,
+                            input_file.getvalue(),
+                            "audio/mpeg",
+                        ),
+                        "reference_file": (
+                            ref_file.name,
+                            ref_file.getvalue(),
+                            "audio/mpeg",
+                        ),
+                    }
+                    data = {
+                        "genre": track_genre,
+                        "stage": dropdown_option,
+                        "user_prompt": text_input,
+                    }
 
-            status_text.text("Processing reference track...")
-            progress_bar.progress(40)
-            # Show another tip
-            current_tip = random.choice(music_tips)
-            tip_container.info(current_tip)
+                    response = client.post(
+                        f"{API_BASE_URL}/upload_tracks",
+                        files=files,
+                        data=data,
+                    )
+                    response.raise_for_status()
+                    api_result = response.json()
 
-            ref_data = process_and_save_file(
-                ref_file,
-                "reference",
-                session_dir,
-                session_id,
-                dropdown_option,
-                text_input,
-            )
+                # Extract data from API response
+                session_id = api_result["session_id"]
+                input_data = api_result["input_track"]
+                ref_data = api_result["reference_track"]
 
-            if input_data["success"] and ref_data["success"]:
-                status_text.text("💾 Saving to database...")
-                progress_bar.progress(60)
-                # Show final tip
+                progress_bar.progress(50)
                 current_tip = random.choice(music_tips)
                 tip_container.info(current_tip)
 
-                try:
-                    db_ops = get_database()
-                    upload_id = db_ops.add_user_upload(
-                        input_track_path=input_data["file_path"],
-                        ref_track_path=ref_data["file_path"],
-                        input_duration=input_data["duration"],
-                        input_sample_rate=input_data["sample_rate"],
-                        input_embedding=input_data["embedding"],
-                        ref_duration=ref_data["duration"],
-                        ref_sample_rate=ref_data["sample_rate"],
-                        ref_embedding=ref_data["embedding"],
-                        user_prompt=text_input,
-                        stage=dropdown_option,
-                        genre=track_genre,
-                        session_id=session_id,
-                        input_file_size_bytes=input_data["file_size_bytes"],
-                        reference_file_size_bytes=ref_data["file_size_bytes"],
-                        input_original_filename=input_data["original_filename"],
-                        reference_original_filename=ref_data["original_filename"],
-                        input_global_features=input_data["global_features"],
-                        ref_global_features=ref_data["global_features"],
-                    )
-
-                    # Collect all data before displaying anything
-                    status_text.text("🎨 Generating arrangement analysis...")
-                    progress_bar.progress(85)
-
-                    # Prepare all visualization data
-                    input_track_data = None
-                    ref_track_data = None
-                    input_viz_fig = None
-                    ref_viz_fig = None
-                    arrangement_error = None
+                if input_data["success"] and ref_data["success"]:
+                    status_text.text("💾 Saving to database...")
+                    progress_bar.progress(60)
 
                     try:
-                        # Get track data with arrangement information
-                        session = db_ops.db.get_session()
+                        db_ops = get_database()
+                        upload_id = db_ops.add_user_upload(
+                            input_track_path=input_data["file_path"],
+                            ref_track_path=ref_data["file_path"],
+                            input_duration=input_data["duration"],
+                            input_sample_rate=input_data["sample_rate"],
+                            input_embedding=input_data["embedding"],
+                            ref_duration=ref_data["duration"],
+                            ref_sample_rate=ref_data["sample_rate"],
+                            ref_embedding=ref_data["embedding"],
+                            user_prompt=text_input,
+                            stage=dropdown_option,
+                            genre=track_genre,
+                            session_id=session_id,
+                            input_file_size_bytes=input_data["file_size_bytes"],
+                            reference_file_size_bytes=ref_data["file_size_bytes"],
+                            input_original_filename=input_data["original_filename"],
+                            reference_original_filename=ref_data["original_filename"],
+                            input_global_features=input_data["global_features"],
+                            ref_global_features=ref_data["global_features"],
+                        )
+
+                        # Collect all data before displaying anything
+                        status_text.text("Generating arrangement analysis...")
+                        progress_bar.progress(85)
+
+                        # Prepare all visualization data
+                        input_track_data = None
+                        ref_track_data = None
+                        input_viz_fig = None
+                        ref_viz_fig = None
+                        arrangement_error = None
+
                         try:
-                            upload = (
-                                session.query(UserUpload)
-                                .filter(UserUpload.id == upload_id)
-                                .first()
-                            )
-                            if upload:
-                                input_track_data = db_ops.get_track(
-                                    int(upload.input_track_id)
+                            # Get track data with arrangement information
+                            session = db_ops.db.get_session()
+                            try:
+                                upload = (
+                                    session.query(UserUpload)
+                                    .filter(UserUpload.id == upload_id)
+                                    .first()
                                 )
-                                ref_track_data = db_ops.get_track(
-                                    int(upload.reference_track_id)
-                                )
-
-                                # Pre-generate time-aligned comparison visualization
-                                visualizer = SongVisualizerService()
-
-                                input_blocks = None
-                                ref_blocks = None
-
-                                # Process input track
-                                if input_track_data and input_track_data.get(
-                                    "raw_arrangement_pattern"
-                                ):
-                                    if input_track_data.get(
-                                        "raw_predictions"
-                                    ) and input_track_data.get("raw_confidence_scores"):
-                                        raw_predictions = json.loads(
-                                            input_track_data["raw_predictions"]
-                                        )
-                                        confidence_scores = json.loads(
-                                            input_track_data["raw_confidence_scores"]
-                                        )
-
-                                        input_blocks, analysis = (
-                                            process_arrangement_predictions(
-                                                np.array(raw_predictions),
-                                                np.array(confidence_scores),
-                                                ["O", "A", "B", "C"],
-                                                min_segment_length=2,
-                                                confidence_threshold=0.4,
-                                            )
-                                        )
-
-                                # Process reference track
-                                if ref_track_data and ref_track_data.get(
-                                    "raw_arrangement_pattern"
-                                ):
-                                    if ref_track_data.get(
-                                        "raw_predictions"
-                                    ) and ref_track_data.get("raw_confidence_scores"):
-                                        raw_predictions = json.loads(
-                                            ref_track_data["raw_predictions"]
-                                        )
-                                        confidence_scores = json.loads(
-                                            ref_track_data["raw_confidence_scores"]
-                                        )
-
-                                        ref_blocks, analysis = (
-                                            process_arrangement_predictions(
-                                                np.array(raw_predictions),
-                                                np.array(confidence_scores),
-                                                ["O", "A", "B", "C"],
-                                                min_segment_length=2,
-                                                confidence_threshold=0.4,
-                                            )
-                                        )
-
-                                # Create time-aligned comparison if both tracks have arrangement data
-                                if input_blocks and ref_blocks:
-                                    comparison_viz_fig = visualizer.plot_time_aligned_comparison(
-                                        input_audio_path=input_track_data["file_path"],
-                                        input_arrangement_blocks=input_blocks,
-                                        input_title=f"Input Track: {input_data['original_filename']}",
-                                        reference_audio_path=ref_track_data[
-                                            "file_path"
-                                        ],
-                                        reference_arrangement_blocks=ref_blocks,
-                                        reference_title=f"Reference Track: {ref_data['original_filename']}",
+                                if upload:
+                                    input_track_data = db_ops.get_track(
+                                        int(upload.input_track_id)
                                     )
-                                else:
-                                    # Fallback to individual plots if one track is missing arrangement data
-                                    if input_blocks:
-                                        input_viz_fig = visualizer.plot_arrangement_waveform(
-                                            audio_path=input_track_data["file_path"],
-                                            arrangement_blocks=input_blocks,
-                                            title=f"Input Track: {input_data['original_filename']}",
-                                        )
-                                    if ref_blocks:
-                                        ref_viz_fig = visualizer.plot_arrangement_waveform(
-                                            audio_path=ref_track_data["file_path"],
-                                            arrangement_blocks=ref_blocks,
-                                            title=f"Reference Track: {ref_data['original_filename']}",
-                                        )
+                                    ref_track_data = db_ops.get_track(
+                                        int(upload.reference_track_id)
+                                    )
 
-                        finally:
-                            session.close()
+                                    # Pre-generate time-aligned comparison visualization
+                                    visualizer = SongVisualizerService()
+
+                                    input_blocks = None
+                                    ref_blocks = None
+
+                                    # Process input track
+                                    if input_track_data and input_track_data.get(
+                                        "raw_arrangement_pattern"
+                                    ):
+                                        if input_track_data.get(
+                                            "raw_predictions"
+                                        ) and input_track_data.get(
+                                            "raw_confidence_scores"
+                                        ):
+                                            raw_predictions = json.loads(
+                                                input_track_data["raw_predictions"]
+                                            )
+                                            confidence_scores = json.loads(
+                                                input_track_data[
+                                                    "raw_confidence_scores"
+                                                ]
+                                            )
+
+                                            input_blocks, analysis = (
+                                                process_arrangement_predictions(
+                                                    np.array(raw_predictions),
+                                                    np.array(confidence_scores),
+                                                    ["O", "A", "B", "C"],
+                                                    min_segment_length=2,
+                                                    confidence_threshold=0.4,
+                                                )
+                                            )
+
+                                    # Process reference track
+                                    if ref_track_data and ref_track_data.get(
+                                        "raw_arrangement_pattern"
+                                    ):
+                                        if ref_track_data.get(
+                                            "raw_predictions"
+                                        ) and ref_track_data.get(
+                                            "raw_confidence_scores"
+                                        ):
+                                            raw_predictions = json.loads(
+                                                ref_track_data["raw_predictions"]
+                                            )
+                                            confidence_scores = json.loads(
+                                                ref_track_data["raw_confidence_scores"]
+                                            )
+
+                                            ref_blocks, analysis = (
+                                                process_arrangement_predictions(
+                                                    np.array(raw_predictions),
+                                                    np.array(confidence_scores),
+                                                    ["O", "A", "B", "C"],
+                                                    min_segment_length=2,
+                                                    confidence_threshold=0.4,
+                                                )
+                                            )
+
+                                    # Create time-aligned comparison if both tracks have arrangement data
+                                    if input_blocks and ref_blocks:
+                                        comparison_viz_fig = visualizer.plot_time_aligned_comparison(
+                                            input_audio_path=input_track_data[
+                                                "file_path"
+                                            ],
+                                            input_arrangement_blocks=input_blocks,
+                                            input_title=f"Input Track: {input_data['original_filename']}",
+                                            reference_audio_path=ref_track_data[
+                                                "file_path"
+                                            ],
+                                            reference_arrangement_blocks=ref_blocks,
+                                            reference_title=f"Reference Track: {ref_data['original_filename']}",
+                                        )
+                                    else:
+                                        # Fallback to individual plots if one track is missing arrangement data
+                                        if input_blocks:
+                                            input_viz_fig = visualizer.plot_arrangement_waveform(
+                                                audio_path=input_track_data[
+                                                    "file_path"
+                                                ],
+                                                arrangement_blocks=input_blocks,
+                                                title=f"Input Track: {input_data['original_filename']}",
+                                            )
+                                        if ref_blocks:
+                                            ref_viz_fig = visualizer.plot_arrangement_waveform(
+                                                audio_path=ref_track_data["file_path"],
+                                                arrangement_blocks=ref_blocks,
+                                                title=f"Reference Track: {ref_data['original_filename']}",
+                                            )
+
+                            finally:
+                                session.close()
+
+                        except Exception as e:
+                            arrangement_error = str(e)
 
                     except Exception as e:
-                        arrangement_error = str(e)
+                        progress_bar.empty()
+                        status_text.empty()
+                        tip_container.empty()
+                        st.error(f"Database error: {e}")
+                        feedback = None
+                        feedback_error = None
 
                     # Generate AI feedback (skip if visual-only mode)
-                    feedback = None
-                    feedback_error = None
+                    if "feedback" not in locals():
+                        feedback = None
+                    if "feedback_error" not in locals():
+                        feedback_error = None
 
                     if not visual_only:
                         status_text.text("Generating AI feedback...")
@@ -782,19 +763,19 @@ else:
                                 "AI feedback skipped for faster processing. Uncheck 'Visual Only' in the sidebar to get feedback."
                             )
 
-                except Exception as e:
+                else:
                     # Clear progress indicators on error
                     progress_bar.empty()
                     status_text.empty()
                     tip_container.empty()
-                    st.error(f"Database error: {e}")
+                    st.error("Failed to process one or both audio files")
 
-            else:
+            except Exception as e:
                 # Clear progress indicators on error
                 progress_bar.empty()
                 status_text.empty()
                 tip_container.empty()
-                st.error("Failed to process one or both audio files")
+                st.error(f"Error processing tracks: {e}")
 
     else:
         # Show missing input warnings in main area
