@@ -8,7 +8,7 @@ from services.user_upload import UserUploadService
 app = FastAPI(
     title="AI Music Mentor API",
     description="RAG-based music production feedback API",
-    version="0.1.0"
+    version="0.1.0",
 )
 
 app.add_middleware(
@@ -19,9 +19,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def root():
     return {"message": "AI Music Mentor API", "status": "running"}
+
 
 @app.get("/health")
 def health_check():

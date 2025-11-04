@@ -33,16 +33,13 @@ class UserUploadService:
             f.write(file_content)
 
         try:
-            global_features = (
-                self.feature_service.load_audio_file(file_path).extract_global_features(
-                    max_duration=400
-                )
-            )
+            global_features = self.feature_service.load_audio_file(
+                file_path
+            ).extract_global_features(max_duration=400)
             embedding = self.feature_service.create_embedding_vector(global_features)
             feature_data = self.feature_service.build_feature_data_object(
                 global_features, ["rhythm", "energy"]
             )
-
 
             return {
                 "file_path": str(file_path),
@@ -50,7 +47,9 @@ class UserUploadService:
                 "file_size_bytes": len(file_content),
                 "duration": feature_data["metadata"]["duration"],
                 "sample_rate": feature_data["metadata"]["sample_rate"],
-                "embedding": embedding.tolist() if hasattr(embedding, "tolist") else embedding,
+                "embedding": (
+                    embedding.tolist() if hasattr(embedding, "tolist") else embedding
+                ),
                 "global_features": global_features,
                 "success": True,
             }
