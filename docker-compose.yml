@@ -28,6 +28,8 @@ services:
       - postgres
     networks:
       - app-network
+    stdin_open: true
+    tty: true
 
   pgadmin:
     image: dpage/pgadmin4
