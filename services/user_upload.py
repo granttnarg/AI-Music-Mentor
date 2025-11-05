@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 from src.audio_features import AudioFeatureService
+from utils.numpy_converter import convert_numpy_to_python
 
 
 class UserUploadService:
@@ -50,7 +51,7 @@ class UserUploadService:
                 "embedding": (
                     embedding.tolist() if hasattr(embedding, "tolist") else embedding
                 ),
-                "global_features": global_features,
+                "global_features": convert_numpy_to_python(global_features),
                 "success": True,
             }
         except Exception as e:
