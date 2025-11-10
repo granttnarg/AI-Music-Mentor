@@ -1,0 +1,138 @@
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Rubik+Iso&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Global font styling */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Main container styling */
+.block-container {
+    max-width: 90% !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+    padding-top: 2rem !important;
+}
+
+/* Main title styling */
+h1 {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 3rem !important;
+    color: #1e293b !important;
+}
+
+/* Subtitle styling */
+.stApp > div > div > div > div > div:nth-child(2) h3 {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    color: #475569 !important;
+    margin-top: 0 !important;
+}
+
+/* Sidebar styling */
+.css-1d391kg {
+    width: 25rem !important;
+    background-color: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
+}
+
+/* Sidebar content styling */
+.stSidebar > div {
+    background-color: #f8fafc !important;
+    padding-top: 1rem !important;
+}
+
+/* Sidebar headers */
+.stSidebar h3 {
+    color: #334155 !important;
+    font-weight: 600 !important;
+}
+
+/* Sidebar captions */
+.stSidebar .caption {
+    color: #e3dfd2 !important;
+}
+
+/* Primary button styling (Analyze Tracks button) */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    color: white !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    padding: 0.75rem 1.5rem !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2) !important;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%) !important;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Adjust main content area */
+.css-18e3th9 {
+    padding-left: 1rem !important;
+}
+
+/* Add horizontal padding to column containers */
+.stColumn > div {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}
+
+/* Add padding to element containers within columns */
+.stColumn .stElementContainer {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+}
+
+/* Ensure visualization containers have proper spacing */
+.stColumn .st-emotion-cache-1vo6xi6 {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+}
+
+/* Main title styling with Rubik Iso font - only for main headings, not feedback content */
+#get-unstuck-get-inspired-get-heard {
+    font-family: "Rubik Iso", system-ui !important;
+    font-weight: 400 !important;
+    font-size: 2rem !important;
+    color: #1e293b !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Keep feedback headings with regular font */
+.stColumn h3, .stColumn h2, .stColumn h4 {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+}
+
+/* Success message styling */
+.stAlert[data-baseweb="notification"][kind="success"] {
+    background-color: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    border-radius: 8px !important;
+}
+
+/* Info styling */
+.stAlert[data-baseweb="notification"][kind="info"] {
+    background-color: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 8px !important;
+}
+
+/* File uploader styling */
+.stFileUploader > div {
+    border-radius: 8px !important;
+    border: 2px dashed #e2e8f0 !important;
+}
+
+.stFileUploader > div:hover {
+    border-color: #3b82f6 !important;
+}
