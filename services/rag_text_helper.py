@@ -40,6 +40,7 @@ class RAGTextHelper:
     def _create_ranking_llm(self):
         """Create LLM instance for ranking feedback"""
         import os
+
         base_url = os.environ.get("DEVELOPMENT_BASE_URL", "http://localhost:11434")
         return ChatOllama(
             model="llama3.2:latest",  # Use available model for ranking
