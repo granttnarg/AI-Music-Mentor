@@ -195,7 +195,10 @@ async def feedback(
             f"Feedback preview: {feedback_text[:200] if feedback_text else 'None'}..."
         )
 
-        return {"feedback": feedback_text, "success": True}
+        # Ensure feedback_text is a string for JSON serialization
+        feedback_str = str(feedback_text) if feedback_text is not None else ""
+
+        return {"feedback": feedback_str, "success": True}
 
     except Exception as e:
         logger.error(f"Error generating feedback: {str(e)}", exc_info=True)

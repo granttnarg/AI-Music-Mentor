@@ -71,13 +71,13 @@ GENRES = [
 ]
 
 MUSIC_TIPS = [
-    "**Tip**: Line up a reference track next to your track in your DAW to help you understand arrangement flow while your make your song. ",
+    "**Tip**: Line up a reference track next to your track in your DAW to help you understand arrangement flow while you make your song, will give you a good basis to work from. ",
     "**Did you know?**: The longer you spent on a track without resting breaks the more likely you are to lose touch with how it sounds. Don't forget to give your ears and mind a rest when creating!",
     "**Pro tip**: Make sure your kick and bass fundemntal frequency is at least 50Hz apart to avoid large overlap that ruin the power and clarity in your low end.",
     "**Technique**: Side-chain compression can create that classic pumping effect, and when done subtly is also great to give space for other elements in the mix.",
     "**Energy tip**: Build tension with low volume subtle rising elements before your main drops can help lead the listener making impact more rewarding.",
-    "**Arrangement**: Leave space in your mix - not every element needs to play at once, its often best to let one or two elements show off in each section.",
-    "**Variation**: If you change multiple elements in A section at once it can breathe a whole new life into your tracks progression and is more impactful that just adding in hi hats or a drum variation.",
+    "**Arrangement**: Leave space in your mix - not every element needs to play at once, its often best to let one or two elements show off in each section to give the lister a focal point.",
+    "**Variation**: If you change multiple elements in one section as it transitions to the next it can breathe a whole new life into your tracks progression and is more impactful that just adding in hi hats or removing the melody",
     "**Focus**: A great track usually has one main element that everything else supports, try to understand which element is the strongest and use that as your songs backbone.",
 ]
 
