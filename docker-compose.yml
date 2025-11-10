@@ -23,7 +23,9 @@ services:
       - ./data:/app/data
       - ./models:/app/models
     environment:
-      - DB_CONNECTION_URL=${DB_CONNECTION_URL}
+      - DB_CONNECTION_URL=${BACKEND_DB_CONNECTION_URL}
+      - DEVELOPMENT_BASE_URL=${DEVELOPMENT_BASE_URL}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
     depends_on:
       - postgres
     networks:
