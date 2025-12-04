@@ -194,7 +194,7 @@ class AudioRAGOperations:
                 classify_arrangement=True,
                 sync_arrangement=True,  # User uploads need immediate arrangement data for RAG
             )
-            session.flush()  # This should be enough to get the ID
+            # Tracks now have IDs from session.flush() inside _add_track
 
             print(f"Got track ID: {input_track.id}")  # Debug line
 
@@ -622,8 +622,10 @@ class AudioRAGOperations:
                 and sync_arrangement
                 and not existing_track.raw_arrangement_pattern
             ):
-                session.commit()  # Commit updates first
-                self.update_track_arrangement(existing_track.id, file_path)
+                session.flush()  # Ensure track has ID
+                self.update_track_arrangement(
+                    existing_track.id, file_path, session=session
+                )
                 print(
                     f"✅ Added missing arrangement data to existing track {existing_track.id}"
                 )
@@ -655,9 +657,8 @@ class AudioRAGOperations:
             # If arrangement classification requested
             if classify_arrangement:
                 if sync_arrangement:
-                    # Process arrangement synchronously (blocking)
-                    session.commit()  # Commit track first so we can update it
-                    self.update_track_arrangement(track.id, file_path)
+                    # Process arrangement synchronously (blocking) within same transaction
+                    self.update_track_arrangement(track.id, file_path, session=session)
                     print(
                         f"✅ Synchronous arrangement analysis complete for track {track.id}"
                     )
@@ -691,9 +692,19 @@ class AudioRAGOperations:
         self._pending_arrangement_analysis.clear()
         print("🎵 All pending arrangement analyses complete!")
 
-    def update_track_arrangement(self, track_id: int, file_path: str):
-        """Update a specific track with arrangement analysis"""
-        session = self.db.get_session()
+    def update_track_arrangement(self, track_id: int, file_path: str, session=None):
+        """Update a specific track with arrangement analysis
+
+        Args:
+            track_id: ID of the track to update
+            file_path: Path to the audio file for analysis
+            session: Optional SQLAlchemy session. If None, creates its own session and commits.
+                    If provided, uses that session without committing (caller handles commit).
+        """
+        owns_session = session is None
+        if owns_session:
+            session = self.db.get_session()
+
         try:
             # Get arrangement analysis
             arrangement = self._classify_track_arrangement(file_path)
@@ -705,12 +716,15 @@ class AudioRAGOperations:
                 track.smoothed_arrangement_pattern = arrangement["smoothed_pattern"]
                 track.raw_predictions = arrangement["raw_predictions"]
                 track.raw_confidence_scores = arrangement["raw_confidence_scores"]
-                session.commit()
+                if owns_session:
+                    session.commit()
             else:
                 raise ValueError(f"Track {track_id} not found")
 
         except Exception as e:
-            session.rollback()
+            if owns_session:
+                session.rollback()
             raise
         finally:
-            session.close()
+            if owns_session:
+                session.close()

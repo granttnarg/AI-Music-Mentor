@@ -60,13 +60,16 @@ Upload your work-in-progress electronic music track alongside a reference track,
 
 ## Technical Architecture
 
-This system combines multiple AI technologies:
+This system combines multiple AI technologies in a **microservices architecture**:
 
+- **FastAPI Backend**: RESTful API handling audio processing, database operations, and RAG pipeline
+- **Streamlit Frontend**: Interactive UI for track upload, visualization, and feedback display
 - **Custom CRNN Model**: Deep learning classifier for automatic arrangement section detection
 - **RAG Pipeline**: Vector similarity search through a database of expert-labeled training examples
 - **Audio Feature Extraction**: Musical features using Librosa (spectral, rhythmic, tonal analysis)
 - **LLM Integration**: Local inference using Ollama with LangChain for contextual feedback generation
-- **Vector Database**: PostgreSQL with embedding similarity search for track matching
+- **Vector Database**: PostgreSQL with pgvector extension for embedding similarity search
+- **Docker Compose**: Orchestrated services (backend, database, admin interface)
 
 ## Setup
 
@@ -99,17 +102,18 @@ cp .env.example .env
 # Edit .env with your secure database credentials and connection details
 ```
 
-4. Start Docker services (PostgreSQL + PgAdmin):
+4. Start Docker services (Backend API + PostgreSQL + PgAdmin):
 
 ```bash
-# Start database and admin interface
-docker-compose up -d
+# Start all services (backend, database, admin interface)
+docker compose up -d
 
 # Check containers are running
-docker-compose ps
+docker compose ps
 
 # View logs if needed
-docker-compose logs
+docker compose logs backend  # Backend API logs
+docker compose logs postgres # Database logs
 ```
 
 5. Set up database:
@@ -173,23 +177,52 @@ docker-compose down -v  # Remove volumes to wipe data
 docker-compose up -d    # Rebuild with fresh data
 ```
 
-Access database directly:
+Access services:
 
+- **FastAPI Backend**: `http://localhost:8000` (API documentation at `/docs`)
+- **Streamlit UI**: `http://localhost:8501`
 - **PostgreSQL**: `localhost:5434`
 - **PgAdmin**: `http://localhost:8080` (use credentials from .env)
+
+### API Endpoints
+
+The FastAPI backend exposes the following endpoints:
+
+- **POST `/upload_tracks`**: Process and save audio tracks to database
+  - Accepts: input/reference audio files, genre, stage, user prompt
+  - Returns: session_id, upload_id, processed track data with embeddings
+
+- **POST `/feedback`**: Generate AI feedback using RAG
+  - Accepts: upload_id, question, k (number of similar examples)
+  - Returns: AI-generated feedback text
+
+- **GET `/health`**: Health check endpoint
+- **GET `/`**: API status
 
 ### Project Structure
 
 ```
-├── app.py                  # Main Streamlit User dashboard
+├── app.py                  # Main Streamlit User dashboard (Frontend)
 ├── admin.py                # Streamlit Admin dashboard with 4 tabs
-├── main.py                 # Main App file
-├── config.py               # Configuration and environment settings
 ├── pyproject.toml          # Project dependencies and configuration
 ├── LEARNINGS.md            # In-depth technical analysis and development insights
+├── docker-compose.yml      # Docker services orchestration
+├── backend/
+│   ├── main.py            # FastAPI application (REST API)
+│   └── Dockerfile         # Backend container configuration
 ├── services/
 │   ├── audio_rag.py        # RAG system with LLM integration
-│   └── song_visualizer_service.py  # Waveform and arrangement visualization
+│   ├── user_upload.py      # Track upload and processing service
+│   ├── song_visualizer_service.py  # Waveform and arrangement visualization
+│   └── rag_text_helper.py  # Feedback ranking and formatting
+├── ui_components/          # Streamlit UI components (extracted from app.py)
+│   ├── sidebar_inputs.py   # Sidebar with track upload inputs
+│   ├── feedback_display.py # AI feedback rendering
+│   └── visualization_display.py  # Arrangement visualization rendering
+├── utils/                  # Pure utility functions
+│   ├── arrangement_visualizer.py  # Visualization preparation logic
+│   ├── numpy_converter.py  # NumPy to Python type conversion
+│   └── style_loader.py     # CSS injection for Streamlit
 ├── admin_tabs/             # Admin interface components
 │   ├── add_new.py         # Training data entry interface
 │   ├── browse_edit.py     # Training data management
@@ -203,26 +236,22 @@ Access database directly:
 │       └── feature_extraction.py         # Audio preprocessing for classification
 ├── db/
 │   ├── db.py              # Database connection and setup
+│   ├── connection.py      # Shared database initialization
 │   ├── models.py          # SQLAlchemy data models
 │   └── operations.py      # Database operations with similarity search
+├── static/
+│   └── styles.css         # CSS styling for Streamlit UI
 ├── data/
 │   ├── raw/               # Raw training audio files
 │   ├── processed/         # Processed feature data
 │   ├── test/              # Test audio files
 │   ├── uploads/           # User uploaded files and session data
-│   ├── batch_import/      # Training examples for batch processing (21 examples)
+│   ├── batch_import/      # Training examples for batch processing
 │   └── backups/           # Database backups and exports
-├── evaluations/           # Generated evaluation results and feedback logs
-├── images/                # Documentation images and screenshots
-├── info/                  # Additional project information
-├── logs/                  # Application and system logs
-├── notebooks/             # Development and analysis notebooks
-├── references/            # Demo presentation slides and project proposals
-├── scripts/               # Utility scripts for data processing
 ├── models/
 │   └── arrangement_classifier/  # Pre-trained models (3classes & 4classes)
+├── evaluations/           # Generated evaluation results and feedback logs
 ├── visualizations/        # Generated visualization outputs (cached)
-├── uploads/               # Legacy upload directory
 └── tests/                 # Unit tests
 ```
 
